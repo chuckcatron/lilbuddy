@@ -1,0 +1,157 @@
+# Contract: AB#1135 — Stripe to RevenueCat Entitlement Sync
+
+## Meta
+- **Work Item**: AB#1135
+- **Type**: Feature
+- **Parent**: AB#1132 — Freemium Paywall & Subscription Flow
+- **Sprint**: Sprint 1 (2026-04-06 – 2026-04-19)
+- **Story Points**: 3
+- **Area**: Momentum\Backend
+- **Branch**: `feature/AB#1135-stripe-revenuecat-sync`
+- **Commit format**: `feature(AB#1135): <subject>`
+
+## Scope
+
+### In Scope
+1. Create `convex/revenuecatSync.ts` with two internal actions:
+   - `grantEntitlement` — calls RevenueCat REST API `POST /v1/subscribers/{app_user_id}/entitlements/{entitlement_id}/promotional` to grant premium entitlement after a Stripe web purchase
+   - `revokeEntitlement` — calls RevenueCat REST API `POST /v1/subscribers/{app_user_id}/entitlements/{entitlement_id}/revoke_promotionals` to revoke entitlement after Stripe subscription cancellation
+2. Modify the Stripe webhook handler in `convex/http.ts` (lines 135-185) to call the sync actions:
+   - After `checkout.session.completed` sets `isPremium: true` → call `grantEntitlement`
+   - After `customer.subscription.deleted` sets `isPremium: false` → call `revokeEntitlement`
+3. Handle identity mapping: extract bare Clerk `user.id` from `tokenIdentifier` (split on `|`, take last segment) since RevenueCat's `app_user_id` is the bare Clerk user ID (set at `mobile/app/_layout.tsx:26`)
+4. Add two Convex environment variables: `REVENUECAT_API_KEY` (secret API key), `REVENUECAT_ENTITLEMENT_ID` (entitlement identifier, e.g., `"premium"`)
+5. Graceful degradation: wrap RevenueCat API calls in try/catch — log errors but never block the Stripe webhook response. Convex `isPremium` is always set regardless of sync outcome.
+6. Unit tests for the sync logic, identity extraction, and error handling
+
+### Out of Scope
+- Mobile UI changes (Story 5 / AB#1137)
+- Web billing UI (Story 4 / AB#1136)
+- RevenueCat→Stripe reverse sync (RevenueCat webhook at `convex/http.ts:7-60` already handles mobile→Convex)
+- Changes to the RevenueCat webhook handler
+- Stripe checkout or portal session creation (`convex/stripe.ts` — completed in AB#1133)
+
+## Inputs
+
+Read these files before writing any code:
+
+| File | Why |
+|------|-----|
+| `convex/http.ts` | Stripe webhook handler (lines 105-189) — modify to add sync calls. RevenueCat webhook (lines 7-60) — pattern reference for RC event handling |
+| `convex/users.ts` | `setPremiumStatus` (lines 41-71) — shows how `revenueCatUserId` maps to `tokenIdentifier` at line 51. `setStripeCustomer` (lines 85-117) — called by webhook, your sync call goes after this |
+| `convex/stripe.ts` | Checkout session creation (line 40) — `client_reference_id: args.tokenIdentifier` shows what value arrives in the webhook |
+| `convex/schema.ts` | `users` table (lines 5-14) — `tokenIdentifier`, `isPremium`, `revenueCatUserId` fields and indexes |
+| `convex/_generated/ai/guidelines.md` | Convex API patterns — confirms `fetch()` available in default runtime (line 233), no `"use node"` needed |
+| `mobile/app/_layout.tsx:24-28` | `configurePurchases(user.id)` — proves RevenueCat `app_user_id` is bare Clerk `user.id`, NOT `tokenIdentifier` |
+| `mobile/lib/revenuecat.ts:20` | `Purchases.configure({ apiKey, appUserID: appUserId })` — confirms the ID format |
+| `mobile/lib/useSubscription.ts:49` | `serverUser?.isPremium ?? rcHasActive` — server is source of truth, RC SDK is fallback |
+| `mobile/app/paywall.tsx:71` | Mobile sends bare `user.id` as `uid` to web `/upgrade` — so `tokenIdentifier` in webhook may already be bare user ID in mobile-originated flows |
+| `tests/stripe-webhook.test.ts` | Existing Stripe webhook tests — must not regress |
+| `tests/setup.ts` | Test setup — `@testing-library/jest-dom/vitest` |
+| `vitest.config.ts` | Test config — jsdom environment, `@` alias resolves to project root |
+
+## Pattern References
+
+| Pattern | Source | Follow for |
+|---------|--------|------------|
+| RevenueCat webhook event handling | `convex/http.ts:7-60` | Event type routing, `app_user_id` extraction, `setPremiumStatus` call pattern |
+| Internal action with `fetch()` | `convex/_generated/ai/guidelines.md:233` | `fetch()` is available in default Convex runtime — no `"use node"` needed |
+| Internal mutation call from httpAction | `convex/http.ts:146-151` | `ctx.runMutation(internal.users.setStripeCustomer, {...})` pattern |
+| Internal action call from httpAction | `convex/_generated/ai/guidelines.md:76-79` | `ctx.runAction(internal.module.fn, {...})` pattern |
+| Pure logic test extraction | `tests/stripe-webhook.test.ts` | Extract testable logic, test with Vitest |
+
+## Change Plan
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `convex/revenuecatSync.ts` | Internal actions: `grantEntitlement(tokenIdentifier)` and `revokeEntitlement(tokenIdentifier)`. Extracts bare `user.id` from `tokenIdentifier`, calls RevenueCat REST API with `fetch()`, logs errors without throwing. |
+| `tests/revenuecat-sync.test.ts` | Unit tests: identity extraction (full `tokenIdentifier` and bare `user.id`), grant API call (201 success), revoke API call (200 success), error handling (401, 500, network failure) |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `convex/http.ts` | After `setStripeCustomer` call on line 146-151 (checkout.session.completed): add `try { await ctx.runAction(internal.revenuecatSync.grantEntitlement, { tokenIdentifier }) } catch (e) { console.error("RevenueCat grant failed:", e) }`. Similar pattern after line 178-183 (subscription.deleted) with `revokeEntitlement`. |
+
+### Files NOT to Touch
+- `convex/stripe.ts` — checkout/portal actions are complete (AB#1133)
+- `convex/users.ts` — no schema or mutation changes needed
+- `convex/schema.ts` — no new fields needed
+- `mobile/` — mobile UI is Story 5
+- `app/` — web UI is Stories 2 and 4
+- `convex/http.ts:7-60` — existing RevenueCat webhook must remain unchanged
+
+## Dependencies
+
+### Prerequisites
+- **AB#1133** (Stripe backend integration) must be merged — provides the Stripe webhook handler in `convex/http.ts` that this story extends
+- RevenueCat dashboard: secret API key generated, entitlement identifier configured (e.g., `"premium"`)
+- Convex env vars set: `REVENUECAT_API_KEY`, `REVENUECAT_ENTITLEMENT_ID`
+
+### Blocks (stories that depend on this)
+- AB#1138 — E2E testing (successor link)
+
+## Verification Commands
+
+| Check | Command | Must Pass |
+|-------|---------|-----------|
+| Type-check | `npx tsc --noEmit` | Yes |
+| Lint | `npm run lint` | Yes |
+| Unit tests | `npm test` | Yes |
+| Coverage | `npm run test:coverage` (80% min for new code) | Yes |
+| Build | `npm run build` | Yes |
+
+## Constraints
+
+- **Convex patterns**: Read `convex/_generated/ai/guidelines.md` before writing Convex code — it overrides training data
+- **No `"use node"`**: `fetch()` is available in the default Convex runtime. Do NOT add `"use node"` to `revenuecatSync.ts` — it would prevent co-exporting with queries/mutations if needed later
+- **Identity mapping is critical**: RevenueCat `app_user_id` = bare Clerk `user.id` (e.g., `user_2abc123`), NOT the full Convex `tokenIdentifier` (e.g., `https://clerk.example.com|user_2abc123`). Extract with: `tokenIdentifier.includes("|") ? tokenIdentifier.split("|").pop()! : tokenIdentifier`
+- **Graceful degradation is mandatory**: RevenueCat sync is best-effort. The Stripe webhook MUST return 200 even if RevenueCat API fails. Convex `isPremium` (server source of truth) is always set first.
+- **TypeScript strict mode**: No `any` types
+- **Environment variables**: Access via `process.env` in Convex actions
+- **RevenueCat REST API auth**: `Authorization: Bearer {REVENUECAT_API_KEY}` header, `Content-Type: application/json`
+
+## Expected Output
+
+After this story is complete:
+
+1. `convex/revenuecatSync.ts` exists with exported `grantEntitlement` and `revokeEntitlement` internal actions
+2. When a Stripe `checkout.session.completed` fires, RevenueCat REST API is called to grant the premium entitlement for that user
+3. When a Stripe `customer.subscription.deleted` fires, RevenueCat REST API is called to revoke the entitlement
+4. The `app_user_id` sent to RevenueCat is the bare Clerk `user.id`, correctly extracted from the `tokenIdentifier`
+5. RevenueCat API errors are logged but do not block the Stripe webhook — `isPremium` is always set in Convex
+6. Mobile `useSubscription` hook reflects premium status via server `isPremium` field without manual restore
+7. Existing RevenueCat webhook at `/revenuecat/webhook` continues to function unchanged
+8. Existing Stripe webhook tests continue to pass
+
+## Edge Cases
+
+- **`tokenIdentifier` with no `|` separator**: Mobile-originated purchases pass bare `user.id` as `uid` to web `/upgrade` (see `mobile/app/paywall.tsx:71`). The identity extraction must handle both formats — if no `|` is present, use the value as-is.
+- **RevenueCat API returns 404 (subscriber not found)**: The user may not have opened the mobile app yet, so RevenueCat has no record. Log a warning but don't fail — the entitlement will be picked up when the mobile app initializes RevenueCat with `configurePurchases(user.id)`.
+- **RevenueCat API returns 401 (bad API key)**: Log error with enough context to diagnose (include response status, omit the key itself). Don't retry — this is a config error.
+- **Duplicate webhook events**: Stripe may send the same event multiple times. Granting an already-granted entitlement is idempotent in RevenueCat. Revoking an already-revoked one is also safe.
+- **`customer.subscription.updated` to non-active status**: The current webhook handler (lines 152-185) handles `updated` and `deleted` together. Only add revoke sync for the `deleted` case (where `isPremium` is definitely `false`). For `updated` with non-active status, the `isPremium` flag is set correctly but RevenueCat revocation is optional — the server is source of truth.
+- **Network timeout calling RevenueCat**: `fetch()` may hang — consider setting a timeout or using `AbortController` with a 10-second deadline to avoid blocking the webhook handler.
+
+## Acceptance Criteria
+
+### Story-Specific
+- [ ] `convex/revenuecatSync.ts` exports `grantEntitlement` and `revokeEntitlement` internal actions
+- [ ] `grantEntitlement` calls `POST /v1/subscribers/{app_user_id}/entitlements/{entitlement_id}/promotional` with correct auth header
+- [ ] `revokeEntitlement` calls `POST /v1/subscribers/{app_user_id}/entitlements/{entitlement_id}/revoke_promotionals`
+- [ ] `app_user_id` is extracted from `tokenIdentifier` by splitting on `|` — handles both full and bare formats
+- [ ] `checkout.session.completed` in Stripe webhook triggers `grantEntitlement`
+- [ ] `customer.subscription.deleted` in Stripe webhook triggers `revokeEntitlement`
+- [ ] RevenueCat API errors are caught, logged, and do not prevent webhook from returning 200
+- [ ] Convex `isPremium` is always set regardless of RevenueCat sync outcome
+- [ ] Existing RevenueCat webhook at `convex/http.ts:7-60` continues to function unchanged
+- [ ] Existing Stripe webhook tests in `tests/stripe-webhook.test.ts` continue to pass
+
+### Quality Gates
+- [ ] `npx tsc --noEmit` passes with no errors
+- [ ] `npm run lint` passes with no errors
+- [ ] `npm test` passes — all existing + new tests green
+- [ ] Test coverage meets 80% minimum for `convex/revenuecatSync.ts`
+- [ ] `npm run build` succeeds
+- [ ] No `any` types introduced
+- [ ] No secrets or credentials committed

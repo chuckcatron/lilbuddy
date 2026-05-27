@@ -1,0 +1,179 @@
+# Prompt Contract: AB#1136 — Web Paywall UI (habit limit + upgrade prompts)
+
+## Meta
+
+- **Work Item:** AB#1136 — Story 4/6: Web paywall UI (habit limit + upgrade prompts)
+- **Type:** Feature
+- **Parent:** AB#1132 (Feature)
+- **Sprint:** Sprint 1
+- **Branch:** `feature/AB#1136-web-paywall-ui`
+- **Commit format:** `feature(AB#1136): <subject>`
+
+## Scope
+
+### In Scope
+
+1. Create `components/UpgradePrompt.tsx` — reusable paywall modal with monthly ($4.99) / annual ($29.99) plan selection, "Save 50%" badge, Stripe checkout redirect
+2. Modify `app/(app)/habits/page.tsx` — add habit count badge ("2/3 habits used") for free users, trigger UpgradePrompt when limit reached
+3. Modify `components/HabitStackBuilder.tsx` — catch `HABIT_LIMIT_REACHED` error, call `onLimitReached` callback instead of silent swallow
+4. Update `components/PricingCard.tsx` — replace team-only $5/mo card with individual premium plan toggle (monthly/annual)
+5. Update `app/(app)/billing/page.tsx` — add individual premium subscription status section alongside team billing, add "Manage Subscription" via Stripe billing portal
+6. Add subtle lock icons on premium-gated features for free users (streak calendar > 30 days, unlimited habits)
+
+### Out of Scope
+
+- Mobile paywall (Story 5/6)
+- Stripe backend / webhook handling (Story 1/6, Story 3/6)
+- RevenueCat sync logic (Story 3/6)
+- Refactoring `app/upgrade/page.tsx` (standalone page stays as-is, modal is new)
+- `app/welcome/page.tsx` changes (already functional)
+- Convex backend changes — all needed queries/mutations already exist
+
+## Inputs
+
+### Files to Read (understand before changing)
+
+| File | Why |
+|------|-----|
+| `convex/habits.ts:62-85` | `counts` query — returns `{ active, limit, isPremium }` |
+| `convex/habits.ts:87-140` | `create` mutation — throws `HABIT_LIMIT_REACHED` at line 122 |
+| `convex/stripe.ts:27-50` | `createCheckoutSession` action — args: `{ plan: "monthly" \| "annual", tokenIdentifier }`, returns URL |
+| `convex/stripe.ts:52-66` | `createPortalSession` action — args: `{ customerId }`, returns URL |
+| `convex/users.ts:4-19` | `current` query — returns `{ isPremium } \| null` |
+| `convex/schema.ts:5-14` | `users` table — `isPremium`, `stripeCustomerId`, `stripeSubscriptionId` fields |
+| `app/upgrade/page.tsx` | Existing upgrade page — plan selection pattern to reuse in modal (lines 61-108) |
+| `app/(app)/habits/page.tsx` | Current habits page — no limit display, no error handling |
+| `components/HabitStackBuilder.tsx` | 4-step wizard modal — silent catch at lines 35-37 |
+| `components/PricingCard.tsx` | Team-only pricing card — line 8 comment marks as temporary |
+| `app/(app)/billing/page.tsx` | Team billing page — uses `api.teams.get` and `createPortalSession` for team only |
+| `components/HabitCard.tsx` | Habit card component — may need lock icon integration |
+
+### Pattern References
+
+| Pattern | File | Lines | Notes |
+|---------|------|-------|-------|
+| Modal overlay | `components/HabitStackBuilder.tsx` | 146-219 | `fixed inset-0 bg-black/50 backdrop-blur-sm` with card inside |
+| Plan selection cards | `app/upgrade/page.tsx` | 61-108 | Grid layout, border highlight on select, "Save 50%" badge |
+| Stripe checkout redirect | `app/upgrade/page.tsx` | 23-37 | `useAction(api.stripe.createCheckoutSession)` pattern |
+| Stripe portal redirect | `app/(app)/billing/page.tsx` | 19-28 | `useAction(api.stripe.createPortalSession)` pattern |
+| Convex query hook | `app/(app)/habits/page.tsx` | 13 | `useQuery(api.habits.list)` |
+| Auth context | `components/PricingCard.tsx` | 3-4, 11-12 | `useAuth()` for `userId`, `useConvexAuth()` for `isAuthenticated` |
+| Test pattern (pure logic) | `tests/upgrade-flow.test.ts` | 1-114 | Extract pure logic, test without React rendering |
+| Test pattern (component) | `tests/GaugeDial.test.tsx` | — | React Testing Library component test |
+| CSS variables | `app/globals.css` | — | `--primary` (amber), `--muted`, `--border`, `--card`, `--background` |
+
+## Change Plan
+
+### Files to Create
+
+| File | Purpose | Pattern Source |
+|------|---------|---------------|
+| `components/UpgradePrompt.tsx` | Paywall modal with plan selection + checkout | Modal from `HabitStackBuilder.tsx:146-219`, plans from `upgrade/page.tsx:61-108` |
+| `tests/paywall-ui.test.ts` | Unit tests for paywall logic (limit display, plan selection, lock visibility) | `tests/upgrade-flow.test.ts` |
+| `tests/UpgradePrompt.test.tsx` | Component tests for UpgradePrompt rendering and interactions | `tests/GaugeDial.test.tsx` |
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `app/(app)/habits/page.tsx` | Add `useQuery(api.habits.counts)`, habit count badge, UpgradePrompt state, gate "+ New Habit" button when at limit |
+| `components/HabitStackBuilder.tsx` | Add `onLimitReached?: () => void` prop, update catch block to detect `HABIT_LIMIT_REACHED` and invoke callback |
+| `components/PricingCard.tsx` | Replace team plan with individual premium plans (monthly/annual toggle), remove hardcoded `plan: "monthly"` |
+| `app/(app)/billing/page.tsx` | Add individual premium status section using `useQuery(api.users.current)`, "Manage Subscription" button for individual subscribers |
+
+### Files NOT to Touch
+
+- `convex/habits.ts` — backend already has counts query and limit enforcement
+- `convex/stripe.ts` — checkout and portal sessions already implemented
+- `convex/users.ts` — current query already returns isPremium
+- `convex/http.ts` — webhook handling is out of scope
+- `convex/schema.ts` — no schema changes needed
+- `app/upgrade/page.tsx` — standalone page stays, modal is additive
+- `app/welcome/page.tsx` — post-checkout page already functional
+- `mobile/` — mobile paywall is Story 5/6
+
+## Dependencies
+
+| Dependency | Type | Status |
+|------------|------|--------|
+| AB#1133 (Story 1/6: Stripe backend) | Predecessor | Must be merged — provides `createCheckoutSession` and `createPortalSession` actions |
+| `api.habits.counts` query | Backend | Already exists at `convex/habits.ts:62-85` |
+| `api.stripe.createCheckoutSession` action | Backend | Already exists at `convex/stripe.ts:27-50` |
+| `api.stripe.createPortalSession` action | Backend | Already exists at `convex/stripe.ts:52-66` |
+| `api.users.current` query | Backend | Already exists at `convex/users.ts:4-19` |
+| Stripe env vars (`STRIPE_SECRET_KEY`, price IDs) | Infrastructure | Must be set in Convex environment |
+
+## Verification Commands
+
+```bash
+# Type check
+npm run type-check
+
+# Unit tests
+npm test
+
+# Unit tests with coverage
+npm run test:coverage
+
+# Build
+npm run build
+```
+
+## Constraints
+
+- **No component library** — Tailwind v4 utility classes only, CSS variables from `globals.css`
+- **No `any` types** — TypeScript strict mode
+- **Coverage threshold:** 80% minimum on new/modified files
+- **Convex patterns:** `useQuery` for reads, `useMutation` for writes, `useAction` for server actions (Stripe calls)
+- **Auth pattern:** `useAuth()` from `@clerk/nextjs` for `userId`, `useConvexAuth()` for `isAuthenticated`
+- **Path alias:** `@/` resolves to project root (configured in `vitest.config.ts` and `tsconfig.json`)
+
+## Expected Output
+
+1. **UpgradePrompt modal** renders with two plan cards ($4.99/mo, $29.99/yr), "Save 50%" badge on annual, subscribe buttons that redirect to Stripe Checkout
+2. **Habits page** shows "2/3 habits used" badge for free users; badge hidden for premium; "+ New Habit" triggers UpgradePrompt when at limit
+3. **HabitStackBuilder** calls `onLimitReached` when mutation throws `HABIT_LIMIT_REACHED` instead of silently failing
+4. **PricingCard** shows individual premium plans with monthly/annual toggle instead of team-only $5/mo
+5. **Billing page** shows individual premium status (active/inactive) and "Manage Subscription" button (Stripe portal) alongside existing team billing
+6. **Lock icons** appear on premium-gated features for free users
+7. **Premium users** see no limit indicators, no lock icons, no upgrade prompts
+
+## Edge Cases
+
+| Case | Expected Behavior |
+|------|-------------------|
+| Unauthenticated user on habits page | `counts` returns `{ active: 0, limit: 3, isPremium: false }` — show empty state, not limit badge |
+| User at exactly 3/3 habits | Show "3/3 habits used" badge in warning style, "+ New Habit" opens UpgradePrompt |
+| User with 0 habits | Show empty state ("Plant your first habit"), no limit badge |
+| Premium user | No limit badge, no lock icons, no UpgradePrompt, "+ New Habit" always opens HabitStackBuilder |
+| Stripe checkout canceled | User returns to `?canceled=true` — existing cancel handling in upgrade page covers this |
+| `createCheckoutSession` returns null | Show error message in UpgradePrompt, don't redirect |
+| User has both team + individual subscription | Billing page shows both sections independently |
+| User has no team | Billing page shows individual premium section, team section shows "Create a team first" (existing behavior) |
+| `counts` query loading | Show skeleton/loading state for habit count badge, don't flash "0/3" |
+
+## Acceptance Criteria
+
+### Functional
+
+- [ ] Habits page shows "X/3 habits used" progress indicator for free users via `api.habits.counts`
+- [ ] Progress indicator hidden when `isPremium === true`
+- [ ] Creating 4th habit as free user opens UpgradePrompt modal, not a silent error
+- [ ] UpgradePrompt shows $4.99/mo and $29.99/yr with "Save 50%" badge on annual
+- [ ] Subscribe button calls `api.stripe.createCheckoutSession({ plan, tokenIdentifier })` and redirects
+- [ ] UpgradePrompt is dismissible (close button + backdrop click)
+- [ ] PricingCard updated from team-only to individual premium with monthly/annual toggle
+- [ ] Billing page shows individual premium status via `api.users.current`
+- [ ] Billing page "Manage Subscription" button calls `api.stripe.createPortalSession`
+- [ ] Lock icons on premium-gated features for free users
+- [ ] Premium users see no limit indicators, lock icons, or upgrade prompts
+
+### Quality
+
+- [ ] `npm run type-check` passes with no errors
+- [ ] `npm test` — all tests pass
+- [ ] `npm run test:coverage` — 80% minimum on new/modified files
+- [ ] `npm run build` succeeds
+- [ ] No `any` types introduced
+- [ ] No secrets or credentials committed
+- [ ] No regressions in existing habits, billing, or upgrade functionality

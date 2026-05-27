@@ -1,0 +1,159 @@
+# Contract: AB#1134 — Web /upgrade Checkout + /welcome Return Page
+
+## Meta
+- **Work Item**: AB#1134
+- **Type**: Feature
+- **Parent**: AB#1132 — Freemium Paywall & Subscription Flow
+- **Sprint**: Sprint 1 (2026-04-06 – 2026-04-19)
+- **Story Points**: 3
+- **Area**: Momentum\Web
+- **Branch**: `feature/AB#1134-web-upgrade-welcome-pages`
+- **Commit format**: `feature(AB#1134): <subject>`
+
+## Scope
+
+### In Scope
+1. Create `app/upgrade/page.tsx` — public `"use client"` page that:
+   - Reads `?plan=monthly|annual` and `?uid=<tokenIdentifier>` from query params
+   - Displays two plan cards: $4.99/mo and $29.99/yr with "Save 50%" badge on annual
+   - Pre-selects the plan if `?plan=` is passed
+   - Maps `uid` query param to `tokenIdentifier` when calling `api.stripe.createCheckoutSession`
+   - Redirects to the Stripe Checkout URL returned by the action
+   - Shows canceled state via `?canceled=true` query param
+2. Create `app/welcome/page.tsx` — post-purchase landing page that:
+   - Shows a success message
+   - Displays a "Return to App" button that opens `momentum://` deep link
+   - Falls back to App Store link if deep link doesn't trigger
+3. Unit tests for both pages
+
+### Out of Scope
+- Stripe backend actions (Story 1 / AB#1133 — already done)
+- Mobile paywall changes (Story 5 / AB#1137)
+- Web paywall UI for existing habit pages (Story 4 / AB#1136)
+- Stripe Price ID creation in Stripe Dashboard (manual setup)
+
+## Inputs
+
+Read these files before writing any code:
+
+| File | Why |
+|------|-----|
+| `app/(app)/billing/page.tsx` | Primary pattern reference — `useAction` + `useSearchParams` + Suspense wrapper |
+| `convex/stripe.ts:27-50` | Action signature: `createCheckoutSession({ plan: "monthly" \| "annual", tokenIdentifier: string })` |
+| `app/layout.tsx` | Root layout wraps all pages in `ClerkProvider` + `ConvexClientProvider` (lines 54-55) |
+| `middleware.ts` | Protected routes list (lines 3-8) — `/upgrade` and `/welcome` are NOT listed = public |
+| `mobile/app/paywall.tsx:70-73` | How mobile sends user to `/upgrade` — `?uid=${user?.id}` |
+| `app/globals.css` | Tailwind v4 CSS variables for design consistency |
+| `mobile/app.json:5,18` | Deep link scheme `momentum://`, iOS bundle ID `cc.getmomentum.app` |
+| `tests/stripe-webhook.test.ts` | Test pattern for this project |
+
+## Pattern References
+
+| Pattern | Source | Follow for |
+|---------|--------|------------|
+| Client page with Suspense + useSearchParams | `app/(app)/billing/page.tsx:1-82` | Page structure, Suspense wrapping, query param reading |
+| Success/canceled banners | `app/(app)/billing/page.tsx:34-44` | Success and canceled query param UI |
+| useAction call + redirect | `app/(app)/billing/page.tsx:19-28` | Loading state, action call, window.location redirect |
+| CSS variables | `app/(app)/billing/page.tsx:48` | `var(--border)`, `var(--card)`, `var(--muted)`, `var(--primary)` |
+| Landing page (public, no auth) | `app/page.tsx` | Public page structure outside `(app)` route group |
+
+## Change Plan
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `app/upgrade/page.tsx` | Stripe checkout page with plan selection |
+| `app/welcome/page.tsx` | Post-purchase success page with deep link |
+| `tests/upgrade-flow.test.ts` | Unit tests for both pages |
+
+### Files to Modify
+None — both routes are outside the protected route group.
+
+### Files NOT to Touch
+- `convex/stripe.ts` — Stripe backend (Story 1, complete)
+- `middleware.ts` — no changes needed, routes are already public
+- `app/(app)/` — authenticated pages are Story 4's scope
+- `components/PricingCard.tsx` — Story 4 will rework this
+- `mobile/` — Story 5's scope
+
+## Dependencies
+
+### Prerequisites
+- **AB#1133 must be merged first** — `api.stripe.createCheckoutSession` lives in `convex/stripe.ts` (currently on PR #1 branch)
+- Stripe account with Price IDs configured (env vars: `STRIPE_MONTHLY_PRICE_ID`, `STRIPE_ANNUAL_PRICE_ID`)
+
+### Stacked Branch
+This branch MUST be based on `feature/AB#1133-stripe-backend-integration` (or `master` if PR #1 is merged). The `/upgrade` page calls `api.stripe.createCheckoutSession` which doesn't exist on `master` yet.
+
+### Blocks
+- AB#1138 — E2E testing (depends on this story)
+
+## Verification Commands
+
+| Check | Command | Must Pass |
+|-------|---------|-----------|
+| Type-check | `npm run type-check` | Yes |
+| Lint | `npm run lint` | Yes |
+| Unit tests | `npm test -- --run` | Yes |
+| Coverage | `npm run test:coverage` | Yes |
+| Build | `npm run build` | Yes |
+
+## Constraints
+
+- **Public pages**: Both `/upgrade` and `/welcome` are outside the `(app)` route group and do NOT require authentication. They use the root layout which wraps in `ClerkProvider` + `ConvexClientProvider`.
+- **Suspense required**: Any page using `useSearchParams()` in Next.js must be wrapped in `<Suspense>` — see `billing/page.tsx:76-81` pattern.
+- **No `any` types**: TypeScript strict mode is enabled.
+- **Convex guidelines**: Read `convex/_generated/ai/guidelines.md` before writing any Convex-related code.
+- **Deep link**: Use `momentum://` scheme. For App Store fallback, use `https://apps.apple.com/app/idXXXXXX` (replace with actual App Store ID when available, or use bundle ID `cc.getmomentum.app`).
+- **Design system**: Use existing Tailwind v4 CSS variables — `var(--primary)`, `var(--border)`, `var(--card)`, `var(--muted)`, `var(--foreground)`, `var(--background)`.
+- **Mobile sends `?uid=`**: The mobile paywall (`paywall.tsx:71`) sends `?uid=${user?.id}`. The `/upgrade` page reads this as `uid` and passes it as `tokenIdentifier` to the Stripe action. Do NOT rename the query param — mobile is out of scope.
+
+## Expected Output
+
+After this story is complete:
+
+1. `/upgrade` page loads without authentication
+2. Two plan cards displayed: $4.99/mo and $29.99/yr with "Save 50%" badge on annual
+3. `?plan=annual` pre-selects the annual plan
+4. `?uid=` is read and passed as `tokenIdentifier` to the Stripe action
+5. Clicking a plan card calls `api.stripe.createCheckoutSession({ plan, tokenIdentifier })` and redirects to Stripe Checkout
+6. After payment, Stripe redirects to `/welcome?success=true`
+7. `/welcome` shows success message and "Return to App" button
+8. "Return to App" opens `momentum://` deep link
+9. App Store fallback link visible if deep link doesn't work
+10. `?canceled=true` on `/upgrade` shows a dismissed-able banner
+11. Both pages wrapped in Suspense for `useSearchParams`
+
+## Edge Cases
+
+- **Missing `?uid=` param**: Show an error state or disable the checkout button — don't call the action without a `tokenIdentifier`
+- **Missing `?plan=` param**: Default to no pre-selection — user must click a plan card
+- **Deep link failure**: Not all browsers support custom URL schemes. The "Return to App" button should attempt `momentum://` but also show a visible App Store link below it as a fallback
+- **User visits `/upgrade` directly (not from mobile)**: Page should still work — show plan cards, let user enter checkout flow. The `uid` param may be missing if they navigate directly, so handle that gracefully
+- **Stripe action throws**: Show an error message — don't leave the user on a loading state. Follow the `catch { setLoading(false) }` pattern from `billing/page.tsx:25-27`
+- **Double-click prevention**: Disable buttons while loading to prevent duplicate checkout sessions
+
+## Acceptance Criteria
+
+### Story-Specific
+- [ ] `/upgrade` page loads without authentication and displays two plan cards
+- [ ] Annual plan card shows a "Save 50%" badge
+- [ ] `?plan=annual` query param pre-selects the annual plan
+- [ ] `?uid=` query param is read and passed as `tokenIdentifier` to `api.stripe.createCheckoutSession`
+- [ ] Clicking a plan button redirects to Stripe Checkout
+- [ ] After payment, user lands on `/welcome?success=true`
+- [ ] `/welcome` shows success message and "Return to App" button
+- [ ] "Return to App" opens `momentum://` deep link
+- [ ] App Store fallback link is visible
+- [ ] `?canceled=true` on `/upgrade` shows a canceled banner
+- [ ] Both pages wrapped in Suspense for useSearchParams
+- [ ] Both pages are responsive and use Tailwind v4 CSS variables
+
+### Quality Gates
+- [ ] `npm run type-check` passes with no errors
+- [ ] `npm run lint` passes
+- [ ] `npm test -- --run` passes — all existing + new tests green
+- [ ] Test coverage meets 80% minimum for new page components
+- [ ] `npm run build` succeeds
+- [ ] No `any` types introduced
+- [ ] No secrets or credentials committed

@@ -1,0 +1,164 @@
+# Prompt Contract: Tech Debt — Clean Up AB#1141 Code Review Findings
+
+## Context
+
+- **AB#:** 1150
+- **Story Type:** Tech Debt
+- **Target repo:** /Users/chuckcatron/chilifunfactory/chilifunfactory (ChiliFunFactory web app)
+- **Target branch:** feature/AB#1150-cleanup-code-review-findings
+- **Base branch:** main (or master — verify with `git branch -r | grep HEAD`)
+- **Commit format:** `type(AB#1150): subject`
+
+## Inputs
+
+- **Convex validators to fix:** `convex/generationStatus.ts` (lines 85, 105), `convex/schema.ts` (line 707)
+- **Convex guidelines:** `convex/_generated/ai/guidelines.md` — read before writing any Convex code
+- **Meal shape reference:** `src/types/meal-planner.ts` — PlanItemSchema defines all fields of a meal object passed to addMeal
+- **hardDelete (BLOCKED):** `convex/recipes.ts` lines 262-277 — see note below
+- **Error handling fix:** `src/app/(admin)/admin/users/actions.ts` line 170 catch block
+- **TODO files:** `src/app/(main)/nutrition/actions.ts:230`, `src/app/(admin)/admin/users/actions.ts:522`, `src/app/(admin)/admin/dashboard/actions.ts:50,76`
+- **Existing tests:** `src/lib/__tests__/` and co-located `*.test.ts` files — run `jest` to verify
+- **Admin action pattern:** `src/app/(admin)/admin/users/actions.ts` functions `updateUserRole`, `updateUserStatus`, `resetUserPassword` — these correctly return `{ success: false, error: error.message }` in catch blocks; match this pattern for `listUsers`
+
+## Pattern References
+
+**Convex validators:**
+- `convex/analytics.ts` — example of well-typed metadata validator using `v.record(v.string(), v.union(...))`
+- `convex/mealPlans.ts` — example of well-typed breakdown validators using `v.record(v.string(), v.number())`
+- `convex/_generated/ai/guidelines.md` — MUST read before writing validators
+
+**Admin action error handling:**
+- `src/app/(admin)/admin/users/actions.ts` — `updateUserRole` catch block at line ~284, `updateUserStatus` at ~343 — use these as the exact pattern for fixing `listUsers`
+
+## Scope
+
+### In Scope
+
+1. **Fix v.any() in generationStatus.ts** — Replace:
+   - Line 85: `meal: v.any()` → typed Convex validator matching `PlanItemSchema` fields (id, date, mealSlot, recipeId, recipeTitle, servings, prepTime, cookTime, spiceLevel, tags, description, ingredients array, createdAt, updatedAt)
+   - Line 105: `meals: v.optional(v.array(v.any()))` → `v.optional(v.array(v.object({...same fields...})))`
+
+2. **Fix v.any() in schema.ts** — Line 707: `meals: v.optional(v.array(v.any()))` → use the same typed meal validator (consider extracting a shared `mealValidator` const in generationStatus.ts and importing it in schema.ts to avoid duplication)
+
+3. **Fix listUsers error handling** — `src/app/(admin)/admin/users/actions.ts` catch block at line ~170: change `throw error` to `return { success: false, error: error instanceof Error ? error.message : String(error) }`. Note: this changes the function's return type — update the return type annotation to match.
+
+4. **Resolve TODO comments** — For each of the four `(AB#1139)` TODOs:
+   - `nutrition/actions.ts:230` — `goalComplianceRate` hardcoded to 0: re-tag as `(AB#1150)` (calculating compliance requires goal data not yet available in Convex)
+   - `admin/users/actions.ts:522` — `favoriteCount` hardcoded to 0: re-tag as `(AB#1150)` (requires a new Convex query)
+   - `admin/dashboard/actions.ts:50` — recipe count via analytics proxy: re-tag as `(AB#1150)` and clarify the comment
+   - `admin/dashboard/actions.ts:76` — active meal plan count returns 0: re-tag as `(AB#1150)`
+
+### BLOCKED — Do Not Implement
+
+- **hardDelete auth guard** (`convex/recipes.ts`) — blocked by AB#1142 (Convex auth via Clerk, currently state: New). `convex/auth.config.ts` does not exist; `ctx.auth.getUserIdentity()` would always return null, breaking the admin delete endpoint. Update the existing comment to reference both AB#1142 and AB#1150 so the dependency is clear, but do not add the guard.
+
+### Out of Scope
+
+- console.log replacement (already done in all action files)
+- stripUndefined() fix (already properly typed)
+- Skipped test cleanup (no skipped tests exist)
+- Any functional changes or new features
+- DynamoDB holdout migration
+
+## Dependencies / Prior Work
+
+- AB#1141 (Convex data layer migration) — complete (this is cleanup from its review)
+- AB#1142 (Convex auth) — NOT complete; hardDelete guard blocked until this lands
+
+## Change Plan
+
+### Files to Create
+
+- None
+
+### Files to Modify
+
+- `convex/generationStatus.ts` — fix `v.any()` at lines 85 and 105
+- `convex/schema.ts` — fix `v.any()` at line 707
+- `convex/recipes.ts` — update comment only (add AB#1150 reference alongside AB#1142)
+- `src/app/(admin)/admin/users/actions.ts` — fix listUsers catch block (~line 170) + return type; re-tag TODO at line 522
+- `src/app/(main)/nutrition/actions.ts` — re-tag TODO at line 230
+- `src/app/(admin)/admin/dashboard/actions.ts` — re-tag TODOs at lines 50 and 76
+
+### Files NOT to Touch
+
+- `convex/analytics.ts` (already fixed)
+- `convex/mealPlans.ts` (already fixed)
+- `src/app/(main)/planner/actions.ts` (already fixed)
+- `src/lib/__tests__/auth-server.test.ts` (no issues)
+- Any file not listed above
+
+## Verification Commands
+
+- **Build/Compile:** N/A (Next.js — build is slow; rely on type-check)
+- **Type-check:** `npx tsc --noEmit`
+- **Lint:** check `package.json` for lint script
+- **Unit tests:** `jest`
+- **Coverage:** `jest --coverage`
+- **E2E tests:** N/A for this story
+
+## Expected Output
+
+- Zero `v.any()` in `convex/generationStatus.ts` and `convex/schema.ts`
+- `listUsers` catch block returns `{ success: false, error }` instead of rethrowing
+- Four TODO comments re-tagged from AB#1139 to AB#1150
+- `hardDelete` comment updated to reference AB#1150 as the tracking ticket
+- All existing tests still pass
+
+## Constraints
+
+### Pattern Conformance (MANDATORY)
+
+1. Read `convex/_generated/ai/guidelines.md` end-to-end before touching any Convex file.
+2. Read `convex/analytics.ts` and `convex/mealPlans.ts` to see how typed validators are written in this project.
+3. Read `PlanItemSchema` in `src/types/meal-planner.ts` fully before writing the meal validator — every field must be accounted for.
+4. Match the error return pattern of `updateUserRole`/`updateUserStatus` exactly for the `listUsers` fix.
+5. Do NOT add `ctx.auth.getUserIdentity()` to `hardDelete` — it will always return null and break the admin endpoint.
+
+### Code Quality Gates
+
+- MUST: No `v.any()` in delivered code
+- MUST NOT: Change function behavior beyond what the story requires
+- MUST NOT: Add `@ts-ignore` or `eslint-disable`
+- MUST NOT: Leave `TODO(AB#1139)` tags — replace with `TODO(AB#1150)`
+
+### Self-Verification (MANDATORY)
+
+After each checkpoint and before reporting done:
+1. `npx tsc --noEmit` — zero errors
+2. `jest` — all tests pass
+3. Re-read every changed file — no stray `v.any()`, no `(AB#1139)` remaining, no rethrows in `listUsers`
+4. Walk each AC item and confirm
+
+### Commit Checkpoints
+
+1. **v.any() fixes** — Fix all three occurrences in generationStatus.ts and schema.ts. Commit when `tsc --noEmit` passes.
+2. **listUsers error handling** — Fix catch block and return type. Commit when tests pass.
+3. **TODO re-tagging + hardDelete comment** — Update all four TODOs and recipes.ts comment. Commit.
+
+## Edge Cases
+
+- [meal validator complexity]: PlanItemSchema uses `z.preprocess` for some fields — the Convex validator doesn't need preprocess (Convex already validates types). Use `v.optional(v.number())` for prepTime/cookTime, not z.preprocess equivalents.
+- [ingredients array]: nested object in PlanItemSchema — write as `v.array(v.object({ name: v.string(), amount: v.number(), unit: v.string() }))`
+- [listUsers return type mismatch]: if changing the catch to return `{ success: false }` conflicts with the existing return type, update the function signature to a union type — don't cast
+- [shared meal validator]: if extracting a const to share between generationStatus.ts and schema.ts, ensure the import direction doesn't create a circular dependency (schema.ts is imported by many files)
+- [tsc errors after validator change]: Convex-generated types may need regeneration — run `npx convex dev` briefly if type errors appear in `_generated/` files
+
+## Acceptance Criteria
+
+### Universal
+
+- [ ] `npx tsc --noEmit` passes with zero errors
+- [ ] All existing Jest tests pass
+- [ ] No secrets committed
+- [ ] No duplicated validator logic (shared const or clearly intentional duplication only)
+- [ ] Every changed file re-read after editing
+
+### Story-Specific
+
+- [ ] Zero `v.any()` in `convex/generationStatus.ts`
+- [ ] Zero `v.any()` in `convex/schema.ts`
+- [ ] `listUsers` catch block returns `{ success: false, error: ... }` — does not rethrow
+- [ ] All four `TODO(AB#1139)` tags replaced with `TODO(AB#1150)`
+- [ ] `convex/recipes.ts` hardDelete comment references AB#1150 (no implementation of the guard)
+- [ ] Test coverage meets 70% minimum

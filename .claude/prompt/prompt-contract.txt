@@ -1,0 +1,288 @@
+# Prompt Contract: <Feature Name>
+
+## Context
+
+- **AB#:** <AZDO work item number>
+- **Story Type:** <Feature | Bug Fix | Security/Snyk | Tech Debt | Infrastructure/CDK>
+- **Target repo(s):** <e.g., verdant_system, verdant-support>
+- **Target branch:** <e.g., feature/AB#XXXXX-description>
+- **Registry key(s):** <repo key from .claude/registry.json — /work uses this for commands, patterns, and anti-patterns>
+- **Commit format:** <from registry — e.g., `type(AB#number): subject` or `AB#number - type: subject`>
+
+## Inputs
+
+What Claude Code needs to know BEFORE writing code. List the specific files and directories relevant to THIS story — not a generic list.
+
+- **CI/CD:** <e.g., .github/workflows/deploy-smart.yml>
+- **Database/Entities:** <e.g., libs/organization_dto/src/entities/>
+- **Existing tests:** <e.g., api-tests/hotel/>
+- **Related source:** <e.g., src/hotel/ — the closest existing feature to study>
+- <add/remove lines as needed for this story>
+
+## Pattern References
+
+The specific files to use as the structural template for new code. Read these end-to-end before writing anything. Your new code should look like these — same structure, same conventions, same error handling.
+
+Pick the lines that apply to your stack. Remove the rest.
+
+**NestJS/TypeScript:**
+- **Controller:** <e.g., src/hotel/hotel.controller.ts>
+- **Service:** <e.g., src/hotel/hotel.service.ts>
+- **Entity:** <e.g., libs/organization_dto/src/entities/hotel.entity.ts>
+- **DTO:** <e.g., src/hotel/dto/update-hotel.dto.ts>
+- **E2E test:** <e.g., api-tests/hotel/hotel.e2e-spec.ts>
+- **Unit test:** <e.g., src/hotel/hotel.service.spec.ts>
+
+**Java/Spring Boot:**
+- **Controller:** <e.g., src/main/java/.../controller/HotelController.java>
+- **Service:** <e.g., src/main/java/.../service/HotelService.java>
+- **Repository:** <e.g., src/main/java/.../repository/HotelRepository.java>
+- **Model/Entity:** <e.g., src/main/java/.../model/Hotel.java>
+- **Test:** <e.g., src/test/java/.../controller/HotelControllerTest.java>
+
+**Frontend (Next.js/Svelte):**
+- **Page/Route:** <e.g., apps/vtm/app/hotels/page.tsx>
+- **Component:** <e.g., apps/vtm/components/hotel/HotelCard.tsx>
+- **Hook/Store:** <e.g., apps/vtm/hooks/useHotel.ts>
+- **API client:** <e.g., apps/vtm/api/hotel.ts>
+- **E2E test:** <e.g., e2e/hotel.spec.ts>
+
+**CDK/Infrastructure:**
+- **Stack:** <e.g., lib/hotel-stack.ts>
+- **Construct:** <e.g., lib/constructs/hotel-api.ts>
+- **Snapshot test:** <e.g., test/hotel-stack.test.ts>
+
+**Python:**
+- **Module:** <e.g., src/hotel/hotel_service.py>
+- **Test:** <e.g., tests/test_hotel_service.py>
+
+> **Not applicable?** For Security/Snyk and some Tech Debt stories, pattern references may not be needed. Write "N/A — dependency upgrade only" and move on.
+
+## Scope
+
+### In Scope
+
+- <what this feature covers>
+
+### Out of Scope
+
+- <what is explicitly excluded — prevents scope creep>
+
+## Dependencies / Prior Work
+
+- <migrations, other PRs, or features that must exist first>
+- <for multi-repo stories: which repo's changes must land first?>
+
+## Change Plan
+
+Files you expect to create or modify. Review this BEFORE writing code — if actual changes diverge from this list, stop and re-evaluate.
+
+### Files to Create
+
+- <e.g., src/energy-profile/energy-profile.controller.ts>
+- <for Security/Snyk stories: likely "None — modifying existing files only">
+
+### Files to Modify
+
+- <e.g., src/app.module.ts — add EnergyProfileModule import>
+- <for Security/Snyk: e.g., package.json — upgrade lodash from 4.17.20 to 4.17.21>
+
+### Files NOT to Touch
+
+- <e.g., any file outside src/energy-profile/ unless listed above>
+
+## Verification Commands
+
+The exact commands to run for this repo. Fill these in — Self-Verification (below) references them. Write "N/A" for commands that don't exist in this repo.
+
+- **Build/Compile:** <e.g., `npm run build` | `mvn clean package` | `cdk synth` | N/A>
+- **Type-check:** <e.g., `npm run type-check` | N/A>
+- **Lint:** <e.g., `npm run lint` | N/A>
+- **Unit tests:** <e.g., `npm run test` | `mvn test` | `pytest` | N/A>
+- **E2E tests:** <e.g., `npm run test:e2e` | N/A>
+- **Coverage:** <e.g., `npm run test:cov` | `mvn jacoco:report` | N/A>
+
+## Expected Output
+
+What Claude Code should produce.
+
+- Completed, tested, working code
+- <additional deliverables per feature>
+
+## Constraints
+
+What the code MUST and MUST NOT do.
+
+### Pattern Conformance (MANDATORY — read before you write)
+
+Before writing ANY new code, you MUST:
+
+1. **Find the closest existing example.** Search the target repo for a similar file to what you're about to create. Read it end-to-end. If a Pattern Reference is listed above, start there.
+2. **Match its structure exactly.** File location, naming convention, decorator/annotation usage, import ordering, error handling pattern, DTO/model shape, test structure — all of it. If the repo puts services in `src/{domain}/{domain}.service.ts`, yours goes there too. If Spring Boot controllers use `@RestController` + `@RequestMapping`, yours does too.
+3. **Reuse existing utilities.** Before writing a helper, search the repo for one that already does the job. If it exists, import it. If it almost exists, extend it — do NOT duplicate it.
+4. **Reuse existing types/DTOs/entities/models.** Search for existing types before creating new ones. If a DTO, interface, or model covers 80%+ of your need, extend or compose it — do NOT create a near-duplicate.
+5. **No new dependencies without justification.** If you need a new npm/Maven/pip package, state why no existing dependency or stdlib solution works. Wait for approval.
+6. **Search for shared modules before creating new exports.** Check `libs/`, `shared/`, `common/`, or whatever directory the target repo uses for shared code. If what you need exists there, import it. If it nearly exists, extend it.
+
+### Code Quality Gates
+
+- MUST: KISS — simplest solution that fully satisfies the requirement
+- MUST: plan first, ask questions when requirements are unclear
+- MUST NOT: leave `TODO`, `FIXME`, or stub implementations in delivered code
+- MUST NOT: use weak types — no `any` (TypeScript), no raw `Object`/`Map` (Java), no untyped `dict` (Python) — use proper types
+- MUST NOT: copy-paste code — extract shared logic or import existing utilities
+- MUST NOT: hallucinate APIs, endpoints, or library methods — verify they exist first
+
+### Test Quality Gates
+
+- Tests must assert **behavior**, not just exercise code paths — every test needs at least one meaningful assertion on output or side effects
+- Test descriptions must describe the expected behavior, not the implementation (`"returns 404 when hotel not found"` not `"calls findOne and throws"`)
+- E2E/integration tests must verify the actual **external contract** of the system under test:
+  - API services: HTTP status codes, response shapes, error formats
+  - CDK/Infra: `cdk synth` succeeds, snapshot matches, resources are correct
+  - Frontend: user-visible behavior via browser automation
+  - Data pipeline: messages are routed/transformed correctly
+- Do NOT write tests that mock so heavily they only test the mocks
+- **If the target repo has no test infrastructure:** note this in the Acceptance Criteria and discuss with the user whether to add it or skip test requirements for this story
+
+### Self-Verification (MANDATORY — check your own work)
+
+After writing code and before reporting completion, you MUST:
+
+1. **Build/Compile.** Run the build command from Verification Commands above. Fix all errors. (Skip if N/A.)
+2. **Type-check.** Run the type-check command. Fix all errors. (Skip if N/A.)
+3. **Lint.** Run the lint command. Fix all errors and warnings. (Skip if N/A.)
+4. **Run tests.** Run both unit and E2E test commands. Fix all failures. (Skip if N/A.)
+5. **Re-read your own code.** Review every file you changed. Ask yourself:
+   - Does this duplicate anything that already exists in this repo?
+   - Does this match the patterns used by neighboring files?
+   - Would a reviewer flag anything here as inconsistent with the codebase?
+   - Are there any unused imports, dead code, or unnecessary changes?
+6. **Verify the contract.** Walk through each Acceptance Criterion below and confirm it passes.
+
+If any check fails, fix it before proceeding. Do NOT report "done" with known issues.
+
+### Commit Checkpoints
+
+Commit working code after each logical unit — do NOT accumulate all changes into one giant uncommitted diff.
+
+Define the checkpoint order for this story (examples by stack):
+
+**NestJS:** Entity/migration → Service + unit tests → Controller + DTOs → E2E tests → Module wiring
+**Java/Spring Boot:** Model/Entity → Repository → Service + tests → Controller → Integration tests
+**Frontend:** Component → Hook/store → Page/route → E2E tests
+**CDK/Infra:** Construct → Stack → Snapshot tests → Config
+**Security/Snyk:** Dependency update → Build verification → Regression test run
+**Bug Fix:** Failing test that reproduces the bug → Fix → Verify all tests pass
+
+Checkpoint order for this story:
+1. <first logical unit> — commit when <condition>
+2. <second logical unit> — commit when <condition>
+3. <...>
+
+Each checkpoint commit should compile/build and pass its own tests. If you break a checkpoint, fix it before moving on.
+
+### Approach Failure Recovery
+
+If the implementation approach isn't working (wrong abstraction, bad assumption, fighting the framework):
+
+1. **Stop.** Do not force a broken approach to completion.
+2. **Report** what you tried and why it isn't working.
+3. **Propose** an alternative approach.
+4. **Wait** for user confirmation before rewriting.
+
+Do NOT silently pivot to a different approach — the user needs to know.
+
+### Repo-Specific Anti-Patterns (from registry)
+
+Do NOT reproduce these patterns, even if existing code uses them:
+
+- <populated from registry.json `anti_patterns` array for the target repo>
+- <e.g., "Controllers are named *Resource.java, not *Controller.java — match the existing convention">
+- <e.g., "Wide-open CORS (@CrossOrigin(origins='*')) — do NOT copy this for new controllers">
+
+### General Rules
+
+- AVOID: over-engineering, unnecessary abstractions, premature generalization
+- AVOID: modifying files outside the contract's scope without asking first
+- AVOID: "improving" or refactoring unrelated code while you're in a file
+
+## Multi-Repo Coordination
+
+> Skip this section if the story targets a single repo.
+
+When a story spans multiple repos:
+
+- **Lead repo:** <the repo whose changes are primary — e.g., verdant_system>
+- **Dependent repo(s):** <repos that consume the lead repo's changes — e.g., verdant-web>
+- **Commit order:** <which repo's changes must land/merge first?>
+- **Integration test:** <how do you verify the repos work together?>
+- **Rollback:** <if the feature needs to be reverted, what's the order? Are there migrations or data changes that complicate rollback?>
+
+## Edge Cases
+
+What happens when things go wrong.
+
+- [hallucinate]: stop immediately, revert the hallucinated code, re-read the actual codebase, and resume from the last known-good state
+- [test failures]: fix root cause — never skip, disable, or mark tests as `.skip`/`xit`/`@Disabled`
+- [ambiguous requirement]: stop and ask the user before assuming — do NOT guess
+- [touching shared DB tables]: check which other services use the table (see CLAUDE.md Shared Database section) and verify no other service breaks
+- [lint/type errors]: fix before completing — never suppress with `@ts-ignore`, `eslint-disable`, `@SuppressWarnings`, or `# type: ignore`
+- [duplicate code detected]: stop, find the existing implementation, and reuse it instead
+- [pattern mismatch]: if your code looks different from neighboring files in the same repo, you're doing it wrong — align before continuing
+- [tests pass but behavior is wrong]: do not trust green tests alone — verify the feature works as described in the acceptance criteria
+- [approach isn't working]: stop, report, propose alternative, wait for approval — do NOT silently pivot or force it
+- [change plan diverges]: if you need to create/modify files not listed in the Change Plan, stop and ask before proceeding
+- [multi-repo desync]: if one repo's changes are merged but the dependent repo isn't ready, do NOT leave the system in a broken intermediate state — coordinate or feature-flag
+- [repo has no test infrastructure]: report this to the user and ask whether to (a) add test infrastructure as part of this story, (b) skip test requirements and note the gap, or (c) write tests that can be enabled later
+
+## Acceptance Criteria
+
+How you'll know it's correct.
+
+### Universal (every story type)
+
+- [ ] Changes build/compile successfully (verified by running the Verification Commands, not by reading the code)
+- [ ] No regressions — all pre-existing tests still pass
+- [ ] No secrets or credentials committed
+- [ ] No duplicated code — all shared logic uses existing utilities or newly extracted shared code
+- [ ] Code follows existing repo patterns (file location, naming, structure, error handling)
+- [ ] Every file changed was re-read after editing to catch mistakes
+- [ ] No `TODO`, `FIXME`, or incomplete implementations in delivered code
+- [ ] PR description follows `.claude/rules/pr-standards.md` format
+
+### Feature stories (add these)
+
+- [ ] Lint and type checks pass (verified by running the commands)
+- [ ] Test coverage: >= 80% on new/changed code
+- [ ] E2E/integration tests: cover the happy path AND at least one edge case
+- [ ] No weak types introduced (`any`, raw `Object`, untyped `dict`)
+
+### Bug Fix stories (add these)
+
+- [ ] A test that reproduces the original bug exists and passes with the fix
+- [ ] The fix addresses the root cause, not just the symptom
+- [ ] No unrelated changes bundled with the fix
+
+### Security/Snyk stories (add these)
+
+- [ ] Vulnerable dependency is upgraded to a non-vulnerable version
+- [ ] `npm audit` / `mvn dependency:tree` confirms the vulnerability is resolved
+- [ ] Project builds and all existing tests pass after the upgrade
+- [ ] No breaking API changes introduced by the upgrade
+
+### Tech Debt stories (add these)
+
+- [ ] Deprecated code/dependency is removed or upgraded
+- [ ] All existing tests pass after the change
+- [ ] No behavior changes unless explicitly required by the story
+
+### Infrastructure/CDK stories (add these)
+
+- [ ] `cdk synth` succeeds
+- [ ] Snapshot tests pass (or are updated with justification)
+- [ ] No unintended resource deletions or replacements in the diff
+
+### Story-Specific Criteria
+
+- [ ] <add criteria specific to THIS story from the AZDO work item>
