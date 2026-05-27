@@ -1,0 +1,14 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Summarize repo layout",
+    "prompt": "Summarize the layout of the lilbuddy repo at /Users/chuckcatron/Code/test-ideas/lilbuddy in exactly 3 bullet points. Look at the top-level files and directories, apps/, docs/, and firmware/ to understand the structure. This is read-only research — do not modify any files.",
+    "subagent_type": "general-purpose"
+  },
+  "tool_use_id": "toolu_01YAgtzaXfZfzYfwpw1fU1te"
+}

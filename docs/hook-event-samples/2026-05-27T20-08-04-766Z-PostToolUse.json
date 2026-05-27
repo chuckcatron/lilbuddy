@@ -1,0 +1,24 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "agent_id": "acb5c8d6873d651ee",
+  "agent_type": "general-purpose",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/Users/chuckcatron/Code/test-ideas/lilbuddy/package.json"
+  },
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/Users/chuckcatron/Code/test-ideas/lilbuddy/package.json",
+      "content": "{\n  \"name\": \"lil-buddy\",\n  \"version\": \"0.0.0\",\n  \"private\": true,\n  \"description\": \"Claude does the work, lil' buddy lets you know how it's going.\",\n  \"packageManager\": \"pnpm@10.15.1\",\n  \"engines\": {\n    \"node\": \">=22\"\n  },\n  \"scripts\": {\n    \"dev\": \"pnpm -r --parallel run dev\",\n    \"build\": \"pnpm -r run build\",\n    \"lint\": \"pnpm -r run lint\",\n    \"typecheck\": \"pnpm -r run typecheck\"\n  }\n}\n",
+      "numLines": 17,
+      "startLine": 1,
+      "totalLines": 17
+    }
+  },
+  "tool_use_id": "toolu_01XLE6Xtoq9jHJEiiV4TjH4d"
+}

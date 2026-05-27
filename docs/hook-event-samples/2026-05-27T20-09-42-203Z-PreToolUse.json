@@ -1,0 +1,13 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "for f in /Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/*PreToolUse*.json; do tool=$(python3 -c \"import json; d=json.load(open('$f')); print(d.get('tool_name',''))\"); if [ \"$tool\" = \"Read\" ]; then echo \"=== $(basename $f) ===\"; cat \"$f\"; echo; break; fi; done",
+    "description": "Find a Read PreToolUse event to check for file_path"
+  },
+  "tool_use_id": "toolu_01J96u1AYmRwpgnEYzwegFAv"
+}

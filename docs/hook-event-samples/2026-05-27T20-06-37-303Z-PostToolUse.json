@@ -1,0 +1,37 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Glob",
+  "tool_input": {
+    "pattern": "docs/hook-event-samples/**/*"
+  },
+  "tool_response": {
+    "filenames": [
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/.gitkeep",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-02-33-302Z-SessionStart.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-46-182Z-UserPromptSubmit.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-49-212Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-49-230Z-PostToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-51-826Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-51-852Z-PostToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-57-873Z-Stop.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-00-100Z-SubagentStop.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-20-086Z-UserPromptSubmit.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-30-062Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-30-081Z-PostToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-33-296Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-37-244Z-PostToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-37-269Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-37-270Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-37-271Z-PreToolUse.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-06-37-284Z-PostToolUse.json"
+    ],
+    "durationMs": 19,
+    "numFiles": 18,
+    "truncated": false
+  },
+  "tool_use_id": "toolu_015zCf2XJJ4oVRDNHHPVjtf8"
+}

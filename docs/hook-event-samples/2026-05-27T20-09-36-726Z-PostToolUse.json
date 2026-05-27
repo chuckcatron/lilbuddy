@@ -1,0 +1,22 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-57-873Z-Stop.json"
+  },
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-05-57-873Z-Stop.json",
+      "content": "{\n  \"session_id\": \"39a8e065-37cb-4598-b57b-74f43c0a883b\",\n  \"transcript_path\": \"/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl\",\n  \"cwd\": \"/Users/chuckcatron/Code/test-ideas/lilbuddy\",\n  \"permission_mode\": \"default\",\n  \"hook_event_name\": \"Stop\",\n  \"stop_hook_active\": false,\n  \"last_assistant_message\": \"Here's the content of `docs/decisions/0003-capture-method.md`. It's an ADR (Architecture Decision Record) that documents the decision to capture Phase 0 hook events from a **real Claude Code session** inside the `lilbuddy/` project.\\n\\nKey points:\\n- **Decision:** Use a live Claude Code session with a scripted workload (option A) to capture real hook event payloads\\n- **Rejected alternatives:** Mirroring hooks from another directory (B) and seeding from docs (C)\\n- **Capture server** listens on `127.0.0.1:8787` and logs events to `docs/hook-event-samples/`\\n- **Driver prompt** exercises various hook events: `SessionStart`, `PreToolUse`/`PostToolUse` for multiple tools, `Notification`, `SubagentStop`, `Stop`, and `SessionEnd`\\n- After capture, the agent classifies events by type and writes the 0.5 analysis decision\"\n}\n",
+      "numLines": 10,
+      "startLine": 1,
+      "totalLines": 10
+    }
+  },
+  "tool_use_id": "toolu_01Ua4bhmxgVEmSySYKqpZDr9"
+}

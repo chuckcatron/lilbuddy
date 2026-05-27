@@ -1,0 +1,20 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Grep",
+  "tool_input": {
+    "pattern": "TODO|FIXME",
+    "output_mode": "content"
+  },
+  "tool_response": {
+    "mode": "content",
+    "numFiles": 0,
+    "filenames": [],
+    "content": "docs/hook-event-samples/2026-05-27T20-07-09-814Z-PreToolUse.json:9:    \"pattern\": \"TODO|FIXME\",\ndocs/hook-event-samples/2026-05-27T20-05-51-852Z-PostToolUse.json:15:[Omitted long matching line]\ndocs/decisions/0003-capture-method.md:34:> 3. Search the repo for any TODO or FIXME comments with grep.",
+    "numLines": 3
+  },
+  "tool_use_id": "toolu_01CKs4VjAAzH9kmDSfmmW4TM"
+}

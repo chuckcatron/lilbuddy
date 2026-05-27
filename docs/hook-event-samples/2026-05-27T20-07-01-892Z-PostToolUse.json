@@ -1,0 +1,20 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -la /Users/chuckcatron/Code/test-ideas/lilbuddy",
+    "description": "List files in project root"
+  },
+  "tool_response": {
+    "stdout": "total 72\ndrwxr-xr-x@ 16 chuckcatron  staff    512 May 27 16:04 .\ndrwxr-xr-x   4 chuckcatron  staff    128 May 27 15:44 ..\ndrwxr-xr-x@  4 chuckcatron  staff    128 May 27 16:06 .claude\ndrwxr-xr-x@ 14 chuckcatron  staff    448 May 27 16:04 .git\n-rw-r--r--@  1 chuckcatron  staff    329 May 27 15:39 .gitignore\n-rw-r--r--@  1 chuckcatron  staff      3 May 27 15:38 .nvmrc\ndrwxr-xr-x@  3 chuckcatron  staff     96 May 27 16:04 .vscode\ndrwxr-xr-x@  4 chuckcatron  staff    128 May 27 15:51 apps\ndrwxr-xr-x@  4 chuckcatron  staff    128 May 27 15:51 docs\ndrwxr-xr-x@  3 chuckcatron  staff     96 May 27 15:39 firmware\ndrwxr-xr-x@  5 chuckcatron  staff    160 May 27 15:51 node_modules\n-rw-r--r--@  1 chuckcatron  staff    393 May 27 15:51 package.json\n-rw-r--r--@  1 chuckcatron  staff  10291 May 27 15:51 pnpm-lock.yaml\n-rw-r--r--@  1 chuckcatron  staff     40 May 27 15:38 pnpm-workspace.yaml\n-rw-r--r--@  1 chuckcatron  staff    606 May 27 15:39 README.md\n-rw-r--r--@  1 chuckcatron  staff    506 May 27 15:39 tsconfig.base.json",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_01BLyfskaoVfc6ZGWERpnYtw"
+}
