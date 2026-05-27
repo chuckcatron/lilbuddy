@@ -1,0 +1,22 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-08-11-926Z-SubagentStop.json"
+  },
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/2026-05-27T20-08-11-926Z-SubagentStop.json",
+      "content": "{\n  \"session_id\": \"39a8e065-37cb-4598-b57b-74f43c0a883b\",\n  \"transcript_path\": \"/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl\",\n  \"cwd\": \"/Users/chuckcatron/Code/test-ideas/lilbuddy\",\n  \"permission_mode\": \"acceptEdits\",\n  \"agent_id\": \"acb5c8d6873d651ee\",\n  \"agent_type\": \"general-purpose\",\n  \"hook_event_name\": \"SubagentStop\",\n  \"stop_hook_active\": false,\n  \"agent_transcript_path\": \"/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b/subagents/agent-acb5c8d6873d651ee.jsonl\",\n  \"last_assistant_message\": \"Here is the summary:\\n\\n- **Monorepo scaffold**: lilbuddy is a pnpm workspace monorepo (Node >= 22) described as \\\"Claude does the work, lil' buddy lets you know how it's going.\\\" Top-level files include `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, and `README.md`.\\n- **Apps**: The `apps/` directory contains two packages -- `bridge`, a TypeScript app with a single `capture.ts` source file (likely a server that captures Claude Code hook events), and `web`, which is currently empty (no files yet).\\n- **Docs and firmware**: `docs/` holds architectural decision records (`decisions/0001-0003`) covering capture server design, hook wiring, and capture method, plus a large set of `hook-event-samples/` JSON files capturing real Claude Code hook lifecycle events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, etc.). The `firmware/` directory does not exist in this repo.\"\n}\n",
+      "numLines": 13,
+      "startLine": 1,
+      "totalLines": 13
+    }
+  },
+  "tool_use_id": "toolu_01AjpdSt1mhiwC3ssBM6k8Yw"
+}

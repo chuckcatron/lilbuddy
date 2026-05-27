@@ -1,0 +1,22 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/Users/chuckcatron/Code/test-ideas/lilbuddy/apps/bridge/src/capture.ts"
+  },
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/Users/chuckcatron/Code/test-ideas/lilbuddy/apps/bridge/src/capture.ts",
+      "content": "import { createServer, type IncomingMessage, type ServerResponse } from \"node:http\";\nimport { writeFile, mkdir } from \"node:fs/promises\";\nimport { join, resolve, dirname } from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\n\nconst PORT = Number(process.env.PORT ?? 8787);\nconst HERE = dirname(fileURLToPath(import.meta.url));\nconst OUT_DIR = resolve(HERE, \"../../../docs/hook-event-samples\");\n\nawait mkdir(OUT_DIR, { recursive: true });\n\nfunction safeName(s: string): string {\n  return s.replace(/[^A-Za-z0-9._-]/g, \"_\").slice(0, 64) || \"unknown\";\n}\n\nasync function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {\n  if (req.method !== \"POST\") {\n    res.writeHead(405, { Allow: \"POST\" });\n    res.end(\"POST only\\n\");\n    return;\n  }\n\n  const chunks: Buffer[] = [];\n  for await (const chunk of req) chunks.push(chunk as Buffer);\n  const raw = Buffer.concat(chunks).toString(\"utf8\");\n\n  const urlEvent = safeName((req.url ?? \"/\").replace(/^\\/+/, \"\").split(\"?\")[0] ?? \"\");\n  let parsed: unknown = raw;\n  let payloadEvent: string | undefined;\n  try {\n    parsed = JSON.parse(raw);\n    if (parsed && typeof parsed === \"object\" && \"hook_event_name\" in parsed) {\n      const v = (parsed as Record<string, unknown>).hook_event_name;\n      if (typeof v === \"string\") payloadEvent = safeName(v);\n    }\n  } catch {\n    // Keep as raw string — we'll save what we got.\n  }\n\n  const event = payloadEvent || urlEvent || \"unknown\";\n  const ts = new Date().toISOString().replace(/[:]/g, \"-\").replace(/\\.(\\d+)Z$/, \"-$1Z\");\n  const filename = `${ts}-${event}.json`;\n  const filepath = join(OUT_DIR, filename);\n\n  const body = typeof parsed === \"string\"\n    ? JSON.stringify({ _raw: parsed }, null, 2)\n    : JSON.stringify(parsed, null, 2);\n\n  await writeFile(filepath, body + \"\\n\", \"utf8\");\n  console.log(`[capture] ${event}  (${raw.length}B) -> ${filename}`);\n\n  res.writeHead(204);\n  res.end();\n}\n\nconst server = createServer((req, res) => {\n  handle(req, res).catch((err: unknown) => {\n    console.error(\"[capture] handler error:\", err);\n    if (!res.headersSent) res.writeHead(500);\n    res.end();\n  });\n});\n\nserver.listen(PORT, \"127.0.0.1\", () => {\n  console.log(`[capture] listening on http://127.0.0.1:${PORT}`);\n  console.log(`[capture] writing samples to ${OUT_DIR}`);\n});\n",
+      "numLines": 68,
+      "startLine": 1,
+      "totalLines": 68
+    }
+  },
+  "tool_use_id": "toolu_01M27VC2UYidMPNYZma9ZnVP"
+}

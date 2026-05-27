@@ -1,0 +1,21 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Glob",
+  "tool_input": {
+    "pattern": ".claude/settings.*"
+  },
+  "tool_response": {
+    "filenames": [
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.claude/settings.json",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.claude/settings.local.json"
+    ],
+    "durationMs": 20,
+    "numFiles": 2,
+    "truncated": false
+  },
+  "tool_use_id": "toolu_015kpXc7fkvcWArE7jRvHPCm"
+}

@@ -1,0 +1,20 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "python3 -c \"\nimport json, glob, os\nfiles = sorted(glob.glob('/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/*.json'))\ntoken_found = False\nfor f in files:\n    with open(f) as fh:\n        d = json.load(fh)\n    txt = json.dumps(d)\n    if 'token' in txt.lower() or 'usage' in txt.lower() or 'cost' in txt.lower():\n        print(f'TOKEN/USAGE found in {os.path.basename(f)}')\n        token_found = True\nif not token_found:\n    print('No token/usage data found in any event')\n\"",
+    "description": "Search all events for token usage data"
+  },
+  "tool_response": {
+    "stdout": "TOKEN/USAGE found in 2026-05-27T20-05-51-852Z-PostToolUse.json\nTOKEN/USAGE found in 2026-05-27T20-08-11-953Z-PostToolUse.json\nTOKEN/USAGE found in 2026-05-27T20-09-51-375Z-PreToolUse.json",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_01V9srAnjHw1N1iRihbRCvDY"
+}

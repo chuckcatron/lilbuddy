@@ -1,0 +1,188 @@
+# Prompt Contract: Web Production Hardening — ESLint, Middleware Migration, and Deployment Polish
+
+## Context
+
+- **AB#:** 1152
+- **Story Type:** Tech Debt / Feature
+- **Target repo(s):** /Users/chuckcatron/Code/test (Momentum web — Next.js 16)
+- **Target branch:** feature/AB#1152-web-production-hardening
+- **Base branch:** master
+- **Commit format:** `type(AB#1152): subject` (e.g., `feat(AB#1152): configure eslint for next.js 16`)
+
+## Inputs
+
+- **CI/CD:** `.github/workflows/ci.yml`
+- **Lint config (current inert stub):** `eslint.config.mjs`
+- **Middleware (to rename):** `middleware.ts` → `proxy.ts`
+- **Next.js config:** `next.config.ts` (currently empty)
+- **Package manifest:** `package.json`
+- **Landing page (inline footer source):** `app/page.tsx:274-280`
+- **Privacy page (template for terms/support):** `app/privacy/page.tsx`
+- **Public pages needing footer:** `app/page.tsx`, `app/privacy/page.tsx`, `app/upgrade/page.tsx`, `app/welcome/page.tsx`
+- **Existing components:** `components/` (22 files — no Footer yet)
+- **Existing tests:** `tests/` (10 test files using Vitest + jsdom + React Testing Library)
+
+## Pattern References
+
+**Frontend (Next.js):**
+- **Page template:** `app/privacy/page.tsx` — use this exact structure for `app/terms/page.tsx` and `app/support/page.tsx` (Metadata export, inline styles, Link back to home, consistent typography)
+- **Component style:** Inspect `components/PricingCard.tsx` or `components/GaugeDial.tsx` for component file conventions before writing Footer
+- **Footer source:** Inline footer at `app/page.tsx:274-280` — extract this as the base for `components/Footer.tsx`
+
+## Scope
+
+### In Scope
+
+1. **ESLint setup** — Install `eslint`, `@eslint/eslintrc`, `eslint-config-next` as dev deps. Update `eslint.config.mjs` so it actually resolves. Change `package.json` lint script from `echo 'TODO...'` to `eslint .` (or `next lint` if available in Next 16). Fix any violations in existing source files. Update CI lint step to fail on violations.
+2. **Middleware → proxy rename** — Rename `middleware.ts` to `proxy.ts`. Clerk's `clerkMiddleware` API is unchanged. Check `next.config.ts` for any `skipMiddlewareUrlNormalize` → `skipProxyUrlNormalize` rename needed (currently empty — likely no change needed).
+3. **Terms of Service page** — Create `app/terms/page.tsx` following the `privacy/page.tsx` structure. Cover: subscription billing, automatic renewal, cancellation/refund policy, data usage, account termination, governing law.
+4. **Support page** — Create `app/support/page.tsx` following the `privacy/page.tsx` structure. Cover: FAQ (what is Momentum, how do habits work, billing questions, cancellation), contact email.
+5. **Footer component** — Extract `components/Footer.tsx` from the inline footer in `app/page.tsx`. Add links to `/privacy`, `/terms`, `/support`. Apply it to all public pages (landing, privacy, upgrade, welcome) replacing inline footers where they exist.
+6. **Stripe verification (manual, document in PR)** — Verify in Stripe Dashboard: (a) statement descriptor reads "MOMENTUM APP" or similar, (b) Customer Portal allows plan switching between monthly/annual. Document findings in the PR description — no code changes expected.
+
+### Out of Scope
+
+- Mobile app changes
+- RevenueCat setup
+- Convex backend changes
+- Authenticated route group `app/(app)/` pages — footer only goes on public pages
+- Adding a footer to the `app/(app)/layout.tsx` (authenticated app layout)
+
+## Dependencies / Prior Work
+
+- AB#1138 (predecessor) — E2E testing and integration verification. Must be complete before this story.
+- No schema or backend changes required.
+
+## Change Plan
+
+### Files to Create
+
+- `app/terms/page.tsx` — Terms of Service page
+- `app/support/page.tsx` — Support/FAQ page
+- `components/Footer.tsx` — Shared footer component
+
+### Files to Modify
+
+- `package.json` — Change lint script; add ESLint devDependencies
+- `package-lock.json` — Updated by npm install
+- `eslint.config.mjs` — Activate config (ensure imported packages resolve)
+- `middleware.ts` → DELETE and create `proxy.ts` (same content, new filename)
+- `.github/workflows/ci.yml` — Ensure lint step runs and fails on errors (it already calls `npm run lint`; fixing the script is enough)
+- `app/page.tsx` — Replace inline `<footer>` with `<Footer />` component; add footer import
+- `app/privacy/page.tsx` — Add `<Footer />` at bottom
+- `app/upgrade/page.tsx` — Add `<Footer />` at bottom
+- `app/welcome/page.tsx` — Add `<Footer />` at bottom
+
+### Files NOT to Touch
+
+- `convex/` — no backend changes
+- `mobile/` — no mobile changes
+- `app/(app)/` — no authenticated page changes
+- Any test files unless a new component needs coverage
+
+## Verification Commands
+
+- **Build:** `npm run build`
+- **Type-check:** `npm run type-check`
+- **Lint:** `npm run lint` (will be real after this story)
+- **Unit tests:** `npm test -- --run`
+- **Coverage:** `npm run test:coverage`
+- **E2E tests:** N/A (Playwright tests are separate; not required for this story)
+
+## Expected Output
+
+- Working ESLint with zero violations on existing code
+- `proxy.ts` replacing `middleware.ts` with no build deprecation warnings
+- `/terms` and `/support` pages live and accessible
+- Footer component on all public pages with correct links
+- CI lint step enforcing real checks
+- PR description documenting Stripe Dashboard verification findings
+
+## Constraints
+
+### Pattern Conformance (MANDATORY — read before you write)
+
+Before writing ANY new code, you MUST:
+
+1. Read `app/privacy/page.tsx` end-to-end — terms and support pages must match this structure exactly (Metadata, inline styles, back link, consistent heading hierarchy).
+2. Read an existing component (e.g., `components/PricingCard.tsx`) to match file conventions before creating `components/Footer.tsx`.
+3. Check `app/page.tsx` full footer block before extracting — ensure no styles or content are lost.
+4. No new runtime dependencies — ESLint tooling is dev-only. Do NOT add any frontend UI library just for the footer.
+
+### Code Quality Gates
+
+- MUST: TypeScript strict mode — no `any`
+- MUST NOT: leave `TODO`, `FIXME`, or stubs
+- MUST NOT: use `eslint-disable` or `@ts-ignore` to suppress real issues — fix them
+- MUST NOT: add `@playwright/test` or other test frameworks — use existing Vitest setup
+
+### Test Quality Gates
+
+- `components/Footer.tsx` should have a test in `tests/Footer.test.tsx` verifying it renders all three links (privacy, terms, support)
+- No tests needed for the terms/support pages themselves (static content)
+- Run `npm run test:coverage` and confirm coverage stays ≥ 80%
+
+### Self-Verification (MANDATORY)
+
+After each checkpoint and before reporting completion:
+
+1. `npm run build` — zero errors, zero deprecation warnings
+2. `npm run type-check` — zero errors
+3. `npm run lint` — zero errors (after ESLint is set up)
+4. `npm test -- --run` — all tests pass
+5. Re-read every file changed — check for unused imports, inconsistent style
+6. Walk through each AC below
+
+### Commit Checkpoints
+
+1. **ESLint setup** — Install deps, update config, fix violations, update CI. Commit when `npm run lint` passes with zero errors.
+2. **Proxy migration** — Rename `middleware.ts` → `proxy.ts`. Commit when `npm run build` shows zero deprecation warnings.
+3. **Terms + Support pages** — Create both pages. Commit when they render correctly and type-check passes.
+4. **Footer component + rollout** — Create `components/Footer.tsx` with tests, apply to all public pages. Commit when tests pass and all pages render correctly.
+
+### Approach Failure Recovery
+
+- If `eslint-config-next` has peer dependency conflicts with Next 16, try `--legacy-peer-deps` and document it.
+- If the `proxy.ts` rename causes Clerk middleware to stop working, check if `@clerk/nextjs` needs an update to support the proxy convention — report before continuing.
+- If the proxy rename alone doesn't eliminate the build warning, check `next.config.ts` for needed `experimental.proxyPrefetch` or `skipProxyUrlNormalize` options.
+
+### Repo-Specific Anti-Patterns
+
+- Do NOT use `next lint` as the lint script — it was removed in Next.js 16. Use `eslint .` directly.
+- Do NOT commit `middleware.ts` alongside `proxy.ts` — delete the old file.
+- Do NOT add `"use client"` to the Footer component unless it requires browser APIs — it's a static link list.
+- Do NOT wrap the Footer in the `app/(app)/layout.tsx` — it belongs only on public pages.
+
+## Edge Cases
+
+- [eslint peer conflicts]: use `--legacy-peer-deps` if needed; document in PR
+- [proxy rename breaks Clerk]: report immediately, do NOT force it — check Clerk version compatibility
+- [terms/support pages need routing]: they use Next.js App Router file-based routing — no manual route registration needed
+- [footer on welcome page]: check if welcome page is authenticated or public — it's at `app/welcome/page.tsx` (public route), so add footer
+- [lint errors in existing code]: fix them — do NOT suppress with eslint-disable
+- [change plan diverges]: stop and ask before modifying files not listed above
+
+## Acceptance Criteria
+
+### Universal
+
+- [ ] Changes build successfully — `npm run build` zero errors, zero deprecation warnings
+- [ ] No regressions — all pre-existing tests still pass
+- [ ] No secrets committed
+- [ ] No duplicated code
+- [ ] Every file changed was re-read after editing
+- [ ] No `TODO`, `FIXME`, or incomplete implementations
+
+### Story-Specific
+
+- [ ] `npm run lint` runs real ESLint checks (not a stub) and passes with zero errors
+- [ ] CI lint step in `.github/workflows/ci.yml` enforces real linting
+- [ ] `proxy.ts` exists; `middleware.ts` is deleted; `npm run build` has zero deprecation warnings
+- [ ] `/terms` page exists with content covering billing, data, and termination
+- [ ] `/support` page exists with FAQ and contact email
+- [ ] `components/Footer.tsx` renders links to `/privacy`, `/terms`, `/support`
+- [ ] Footer renders on: landing page, `/privacy`, `/upgrade`, `/welcome`
+- [ ] `tests/Footer.test.tsx` exists and passes
+- [ ] Test coverage ≥ 80% (`npm run test:coverage`)
+- [ ] Stripe statement descriptor verified (documented in PR description)
+- [ ] Stripe Customer Portal plan switching verified (documented in PR description)

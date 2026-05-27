@@ -1,0 +1,219 @@
+# Prompt Contract — AB#1138: E2E Testing & Integration Verification
+
+**Story Type:** Feature (Test Coverage)
+**Sprint:** Sprint 1
+**Parent:** AB#1132 — Freemium Paywall & Subscription Flow
+**Branch:** `feature/AB#1138-e2e-testing-integration`
+**Commit format:** `test(AB#1138): <subject>`
+
+---
+
+## Objective
+
+Close the remaining test gaps in the freemium paywall flow by adding integration-level
+Stripe webhook tests, component render tests for upgrade UI pages, and mutation-level
+habit limit enforcement tests. Predecessor stories (AB#1133–AB#1137) established pure-logic
+unit tests; this story adds the higher-fidelity layer.
+
+---
+
+## Scope
+
+### In Scope
+
+1. **Stripe webhook integration tests** — extend `tests/stripe-webhook.test.ts`
+   - `checkout.session.completed` → `setStripeCustomer` with `isPremium: true`, `stripeCustomerId`, `stripeSubscriptionId`
+   - `customer.subscription.updated` → status mapping (`active`/`trialing` = premium), fallback user resolution via `getByStripeCustomerId`
+   - `customer.subscription.deleted` → `isPremium: false`, `revokeEntitlement` call
+   - Signature rejection: 401 for missing header, invalid HMAC, expired timestamp (>300s)
+   - RevenueCat sync: `grantEntitlement` after checkout, `revokeEntitlement` after deletion (best-effort)
+
+2. **Upgrade flow component render tests** — extend `tests/upgrade-flow.test.ts`
+   - `/upgrade` page: two plan cards ($4.99/mo, $29.99/yr), `?plan=annual` pre-selection, `?canceled=true` message
+   - `/welcome` page: "Return to App" button with `momentum://` deep link, `?success=true` success heading
+
+3. **UpgradePrompt modal component test** — create `tests/UpgradePrompt.test.tsx`
+   - Renders when `isOpen=true`, hidden when `false`
+   - Close button (X) triggers `onClose`
+   - Displays both plan options (Monthly $4.99, Annual $29.99)
+   - Custom `context` message prop
+
+4. **Habit limit enforcement tests** — extend `tests/paywall-ui.test.ts`
+   - Free user at limit (3 active habits) → `HABIT_LIMIT_REACHED` error
+   - Free user under limit → creation succeeds
+   - Premium user bypasses limit entirely
+   - `habits.counts` returns `{ active: number, limit: 3, isPremium: boolean }`
+
+5. **Full suite verification** — all tests pass, coverage ≥ 80%, no regressions
+
+### Out of Scope
+
+- Mobile E2E tests (separate infrastructure)
+- Playwright browser tests (`npm run test:ui`)
+- Manual QA
+- Convex dev server integration tests (real backend)
+- Writing or modifying production code (test-only story)
+
+---
+
+## Inputs — Files to Read Before Coding
+
+### Source Under Test
+
+| File | What to Read For |
+|------|-----------------|
+| `convex/http.ts:66-209` | Stripe webhook handler — signature verification, event processing, RevenueCat sync calls |
+| `convex/revenuecatSync.ts` | `grantEntitlement`, `revokeEntitlement` — API call patterns, `extractAppUserId` |
+| `convex/habits.ts:4` | `FREE_HABIT_LIMIT = 3` |
+| `convex/habits.ts:62-85` | `counts` query — return shape `{ active, limit, isPremium }` |
+| `convex/habits.ts:116-125` | Limit enforcement — `activeCount >= FREE_HABIT_LIMIT` → throw `"HABIT_LIMIT_REACHED"` |
+| `convex/users.ts` | `setStripeCustomer` mutation, `getByStripeCustomerId` query |
+| `convex/stripe.ts` | `createCheckoutSession` action — price IDs, success/cancel URLs |
+| `convex/schema.ts:5-14` | `users` table — `isPremium`, `stripeCustomerId`, `stripeSubscriptionId`, `by_token` index |
+| `app/upgrade/page.tsx` | Plan cards, query params (`plan`, `uid`, `canceled`), Stripe checkout redirect |
+| `app/welcome/page.tsx` | Deep link URL (`momentum://`), App Store fallback, `?success=true` state |
+| `components/UpgradePrompt.tsx` | Modal props: `isOpen`, `onClose`, `context?` — plan selection, Stripe redirect |
+
+### Existing Tests to Extend
+
+| File | Current Coverage | Gap |
+|------|-----------------|-----|
+| `tests/stripe-webhook.test.ts` (179 lines, 18 tests) | Signature parsing, HMAC computation, event classification, status mapping | No integration tests for event processing flow, no 401 rejection tests, no RevenueCat sync tests |
+| `tests/upgrade-flow.test.ts` (114 lines, 12 tests) | Plan resolution, UID validation, pricing, deep links | No component render tests — all pure logic |
+| `tests/paywall-ui.test.ts` (184 lines, 19 tests) | Badge display, upgrade triggers, error detection, billing logic | No mutation-level enforcement tests, no `habits.counts` shape validation |
+
+### Pattern References
+
+| Pattern | Reference File | What to Copy |
+|---------|---------------|-------------|
+| Component render test | `tests/TaskItem.test.tsx` | `vi.mock("convex/react")` + `vi.mock("@/convex/_generated/api")` before import, `render()` + `screen.getBy*()` |
+| Fetch mocking | `tests/revenuecat-sync.test.ts:71-81` | Save `globalThis.fetch`, replace with `vi.fn()`, restore in `afterEach` |
+| Pure logic extraction | `tests/habits.test.ts:4-21` | Copy function logic from source, test in isolation without Convex runtime |
+| Test setup | `tests/setup.ts` | Imports `@testing-library/jest-dom/vitest` only |
+| Vitest config | `vitest.config.ts` | jsdom environment, `@` alias to project root, V8 coverage |
+
+---
+
+## Dependencies
+
+| Dependency | Type | Status |
+|-----------|------|--------|
+| AB#1133 — Stripe backend integration | Predecessor | Must be complete (webhook handler exists) |
+| AB#1134 — Web upgrade/welcome pages | Predecessor | Must be complete (pages exist) |
+| AB#1135 — Stripe-RevenueCat entitlement sync | Predecessor | Must be complete (sync functions exist) |
+| AB#1136 — Web paywall UI | Predecessor | Must be complete (UpgradePrompt, PricingCard exist) |
+| AB#1137 — Mobile paywall polish | Predecessor | Must be complete (mobile tests exist) |
+
+All 5 predecessors must be merged before this story begins.
+
+---
+
+## Change Plan
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `tests/UpgradePrompt.test.tsx` | Component render tests for UpgradePrompt modal (follow `TaskItem.test.tsx` pattern) |
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `tests/stripe-webhook.test.ts` | Add `describe` blocks for: webhook event processing integration, signature rejection (401s), RevenueCat sync verification |
+| `tests/upgrade-flow.test.ts` | Add component render tests for `/upgrade` and `/welcome` pages using React Testing Library |
+| `tests/paywall-ui.test.ts` | Add habit limit enforcement tests (extracted mutation logic) and `habits.counts` shape validation |
+
+### Files NOT to Touch
+
+- Any file under `convex/` (no production code changes)
+- Any file under `app/` or `components/` (no production code changes)
+- Any file under `mobile/` (mobile E2E out of scope)
+- `tests/setup.ts` (no global mock changes needed — inline mocking per test file)
+
+---
+
+## Verification Commands
+
+```bash
+# Type-check
+npm run type-check
+
+# Unit tests (all)
+npm test
+
+# Unit tests (targeted — run during development)
+npx vitest run tests/stripe-webhook.test.ts
+npx vitest run tests/upgrade-flow.test.ts
+npx vitest run tests/UpgradePrompt.test.tsx
+npx vitest run tests/paywall-ui.test.ts
+
+# Coverage
+npm run test:coverage
+
+# Build (sanity check — no prod changes expected)
+npm run build
+```
+
+---
+
+## Constraints
+
+- **Test framework:** Vitest + jsdom + React Testing Library
+- **Coverage provider:** V8 (`@vitest/coverage-v8`)
+- **Coverage threshold:** 80% minimum on new/modified test files
+- **Path alias:** `@` → project root (configured in `vitest.config.ts`)
+- **No real Convex calls:** All Convex functions must be mocked or logic extracted as pure functions
+- **No Stripe SDK:** Webhook tests use native `crypto.subtle` for HMAC, not the Stripe library
+- **Mock pattern:** `vi.mock()` calls BEFORE component imports (Vitest hoisting)
+
+---
+
+## Edge Cases
+
+1. **Stripe webhook with missing `client_reference_id`** — handler logs warning but returns 200 OK (graceful degradation)
+2. **`customer.subscription.updated` without metadata** — falls back to `getByStripeCustomerId` lookup; test both paths
+3. **Expired timestamp** — signature valid but timestamp >300s old → 401
+4. **RevenueCat sync failure** — should NOT fail the webhook; test that errors are caught and logged
+5. **Premium user at limit** — should bypass limit check entirely (never counts habits)
+6. **`habits.counts` with no user record** — defaults to `{ active: 0, limit: 3, isPremium: false }`
+7. **UpgradePrompt with no `context` prop** — falls back to default message "Unlock unlimited habits..."
+
+---
+
+## Expected Output
+
+After this story is complete:
+
+1. `tests/stripe-webhook.test.ts` has integration tests covering all 3 event types, 3 rejection scenarios, and RevenueCat sync
+2. `tests/upgrade-flow.test.ts` has component render tests for `/upgrade` and `/welcome` pages
+3. `tests/UpgradePrompt.test.tsx` exists with modal open/close, plan display, and context prop tests
+4. `tests/paywall-ui.test.ts` has mutation-level enforcement tests for free/premium habit creation
+5. `npm test` passes with 0 failures
+6. `npm run test:coverage` shows ≥80% on all test targets
+7. No regressions in existing test suite
+
+---
+
+## Acceptance Criteria
+
+### Story-Specific
+
+- [ ] Stripe webhook integration tests cover `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+- [ ] Webhook tests verify 401 rejection for: missing `stripe-signature`, invalid HMAC, expired timestamp (>300s)
+- [ ] Webhook tests verify RevenueCat sync: `grantEntitlement` after checkout, `revokeEntitlement` after deletion, failures non-blocking
+- [ ] Webhook tests verify `customer.subscription.updated` fallback user resolution via `getByStripeCustomerId`
+- [ ] Habit limit tests verify: free user at 3 habits → `HABIT_LIMIT_REACHED`, under limit → success, premium → bypasses limit
+- [ ] `habits.counts` test verifies return shape `{ active: number, limit: 3, isPremium: boolean }`
+- [ ] `/upgrade` page test: plan cards render, `?plan=annual` pre-selects, `?canceled=true` shows message
+- [ ] `/welcome` page test: "Return to App" with `momentum://` deep link, `?success=true` shows heading
+- [ ] UpgradePrompt test: `isOpen` toggle, `onClose` via X button, both plan options, custom `context` message
+
+### Universal Quality
+
+- [ ] All tests pass — `npm test` exits 0
+- [ ] Coverage ≥ 80% — `npm run test:coverage`
+- [ ] Type-check passes — `npm run type-check`
+- [ ] No regressions — all existing tests continue to pass
+- [ ] No `any` types in test files
+- [ ] No skipped tests without documented reason

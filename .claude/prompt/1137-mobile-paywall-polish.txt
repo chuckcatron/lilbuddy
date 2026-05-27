@@ -1,0 +1,218 @@
+# Prompt Contract: AB#1137 — Mobile paywall polish (lock icons + premium badges)
+
+## Meta
+
+- **Work Item**: AB#1137 — Story 5/6: Mobile paywall polish (lock icons + premium badges)
+- **Type**: Feature
+- **Parent**: AB#1132 (Feature)
+- **Sprint**: Sprint 1
+- **Branch**: `feature/AB#1137-mobile-paywall-polish`
+- **Commit format**: `feature(AB#1137): <subject>`
+
+## Story Type
+
+Feature — adding persistent premium-gating UI indicators to the mobile habits and dashboard screens.
+
+## Scope
+
+### In Scope
+
+1. **Persistent habit count in habits header** — Replace the "Build your habit stacks" subtitle (habits.tsx lines 102-104) with an `X/3 habits used` indicator + small lock icon for free users. Must be always visible regardless of banner dismissal state.
+2. **Dashboard upgrade CTA card** — Add a subtle upgrade card for free users on dashboard.tsx between MotivationalQuote (line 100) and Today's Habits section (line 102). Import `useSubscription`, conditionally render.
+3. **Unit tests** — Pure logic tests for visibility/hiding conditions + navigation targets.
+
+### Out of Scope
+
+- Paywall screen changes (already complete in paywall.tsx)
+- Web paywall UI (AB#1136, separate story)
+- StreakCalendar lock icon (already implemented at lines 128-143)
+- Team tab lock icons (already implemented: Create Team line 107, Invite line 169, Unlock CTA lines 175-207)
+- RevenueCat integration changes
+- Convex backend changes
+
+## Inputs
+
+### Files to Read (context)
+
+| Path | Purpose |
+|------|---------|
+| `mobile/lib/useSubscription.ts` | Subscription hook — returns `{ isPremium, customerInfo, loading }` |
+| `mobile/lib/theme.ts` | `useThemeColors()` for `colors.card`, `colors.border`, `colors.muted`, `colors.foreground` |
+| `mobile/components/StreakCalendar.tsx:128-143` | Pattern reference for lock icon + CTA styling |
+| `mobile/app/(tabs)/team.tsx:85-111` | Pattern reference for lock icon on buttons |
+| `mobile/app/(tabs)/habits.tsx:122-159` | Existing dismissible banner — must not break |
+| `mobile/app/paywall.tsx` | Paywall screen — navigation target `/paywall` |
+| `convex/_generated/api.ts` | Generated API types for `api.habits.counts` |
+| `tests/paywall-ui.test.ts` | Existing test patterns for paywall UI logic |
+
+### Files to Modify
+
+| Path | Change |
+|------|--------|
+| `mobile/app/(tabs)/habits.tsx` | Replace subtitle (lines 102-104) with conditional persistent habit count for free users |
+| `mobile/app/(tabs)/dashboard.tsx` | Add `useSubscription` import + upgrade CTA card after line 100 |
+
+### Files to Create
+
+| Path | Purpose | Pattern Reference |
+|------|---------|-------------------|
+| `tests/mobile-paywall-polish.test.ts` | Unit tests for new visibility logic | `tests/paywall-ui.test.ts` |
+
+### Files NOT to Touch
+
+- `mobile/components/StreakCalendar.tsx` — lock icon already complete
+- `mobile/app/(tabs)/team.tsx` — lock icons already complete
+- `mobile/app/paywall.tsx` — paywall screen already complete
+- `convex/` — no backend changes needed
+- `app/` — web app, separate story
+
+## Dependencies
+
+- **Predecessor**: None (AB#1137 has no predecessor links)
+- **Successor**: AB#1138
+- **Runtime deps**: `useSubscription()` hook must be available (it is — `mobile/lib/useSubscription.ts`)
+- **Data deps**: `useQuery(api.habits.counts)` must return `{ active, limit }` (already used in habits.tsx line 23)
+- **No migrations or schema changes required**
+
+## Change Plan
+
+### 1. habits.tsx — Persistent Habit Count
+
+**Location**: lines 92-104 (header `<View>`)
+
+**Current** (lines 102-104):
+```tsx
+<Text style={{ fontSize: 14, color: colors.muted }}>
+  Build your habit stacks
+</Text>
+```
+
+**Change**: Replace with conditional rendering:
+- **Free user with habits**: Show `X/3 habits used` + small 🔒 (Pressable → `/paywall`)
+- **Free user with 0 habits**: Show "Build your habit stacks" (original)
+- **Premium user**: Show "Build your habit stacks" (original)
+
+**Key details**:
+- `habitCounts` is already available (line 23: `const habitCounts = useQuery(api.habits.counts)`)
+- `isPremium` is already available (line 21: `const { isPremium } = useSubscription()`)
+- `router` is already available (line 20)
+- No new imports needed
+
+### 2. dashboard.tsx — Upgrade CTA Card
+
+**Location**: after line 100 (after `<MotivationalQuote />`, before Today's Habits)
+
+**New imports needed**:
+```tsx
+import { useSubscription } from "../../lib/useSubscription";
+import { useRouter } from "expo-router";
+```
+
+**New code**: Conditional card block:
+- **Free user**: Show card with 🔒 + "Unlock unlimited habits & team features" + Pressable → `/paywall`
+- **Premium user**: Render nothing
+
+**Card styling** (match existing dashboard cards):
+```tsx
+backgroundColor: colors.card,
+borderRadius: 16,
+padding: 20,
+borderWidth: 1,
+borderColor: colors.border,
+```
+
+**Key details**:
+- `colors` already available via `useThemeColors()` (line 30)
+- `router` needs to be added: `const router = useRouter()`
+- `useSubscription` needs to be imported and called: `const { isPremium } = useSubscription()`
+
+### 3. Tests — Pure Logic Tests
+
+**File**: `tests/mobile-paywall-polish.test.ts`
+
+**Pattern**: Follow `tests/paywall-ui.test.ts` — extract pure functions for visibility logic, test with Vitest.
+
+**Test cases**:
+- `shouldShowPersistentCount({ active: 2, limit: 3, isPremium: false })` → `true`
+- `shouldShowPersistentCount({ active: 0, limit: 3, isPremium: false })` → `false`
+- `shouldShowPersistentCount({ active: 5, limit: 3, isPremium: true })` → `false`
+- `shouldShowPersistentCount(undefined)` → `false`
+- `shouldShowDashboardCTA(false)` → `true` (free user)
+- `shouldShowDashboardCTA(true)` → `false` (premium user)
+- `getPersistentCountText({ active: 2, limit: 3 })` → `"2/3 habits used"`
+
+## Verification Commands
+
+```bash
+# Type-check (root)
+npm run type-check
+
+# Lint (root)
+npm run lint
+
+# Unit tests
+npm test
+
+# Unit tests with coverage
+npm run test:coverage
+
+# Build (ensures no compile errors)
+npm run build
+```
+
+## Constraints
+
+- Lock icon pattern: `<Text style={{ fontSize: 12 }}>🔒</Text>` (emoji, consistent with StreakCalendar and team.tsx)
+- All CTAs navigate via `router.push("/paywall")` — never deep link or external URL
+- Indicators must be **subtle** — never hard-block access to existing free features
+- Premium users must see zero upsell UI (no lock icons, no counts, no CTAs)
+- Do not modify the existing dismissible banner in habits.tsx (lines 122-159)
+- No `any` types — strict TypeScript
+- 80% minimum test coverage on modified files
+
+## Expected Output
+
+1. **habits.tsx** shows `X/3 habits used 🔒` in header subtitle for free users with 1+ habits
+2. **dashboard.tsx** shows upgrade CTA card for free users between MotivationalQuote and Today's Habits
+3. Both indicators navigate to `/paywall` on tap
+4. Premium users see original "Build your habit stacks" subtitle and no dashboard CTA
+5. Existing dismissible banner continues to work unchanged
+6. All tests pass, coverage >= 80%
+
+## Edge Cases
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| `habitCounts` is `undefined` (loading) | Show original subtitle "Build your habit stacks" |
+| Free user with 0/3 habits | Show original subtitle (no count indicator yet — nothing to count) |
+| Free user with 3/3 habits (at limit) | Show "3/3 habits used 🔒" in persistent indicator AND dismissible banner |
+| Premium user | No persistent count, no dashboard CTA, no lock icons |
+| `useSubscription().loading` is true | Hide premium-gated UI until loaded (avoid flash) |
+
+## Acceptance Criteria
+
+### Story-Specific
+
+- [ ] Free users see persistent `X/3 habits used` in habits header subtitle — always visible regardless of banner dismissal
+- [ ] Persistent indicator includes 🔒 that navigates to `/paywall`
+- [ ] Existing dismissible banner (habits.tsx:122-159) works unchanged
+- [ ] Dashboard shows upgrade CTA card for free users between MotivationalQuote and Today's Habits
+- [ ] Dashboard CTA navigates to `/paywall`
+- [ ] Premium users see no persistent count, no dashboard CTA
+- [ ] All indicators are subtle — no hard blocks on free features
+
+### Testing
+
+- [ ] Unit tests cover: persistent count visibility (free/premium/loading/zero habits)
+- [ ] Unit tests cover: dashboard CTA visibility (free/premium)
+- [ ] Unit tests cover: paywall navigation targets
+- [ ] Test coverage >= 80% on modified files
+- [ ] No regressions — existing paywall flow, habit gating, dismissible banner, team gating all pass
+
+### Quality
+
+- [ ] `npm run type-check` passes
+- [ ] `npm run lint` passes
+- [ ] `npm run build` succeeds
+- [ ] No `any` types introduced
+- [ ] No secrets or credentials committed

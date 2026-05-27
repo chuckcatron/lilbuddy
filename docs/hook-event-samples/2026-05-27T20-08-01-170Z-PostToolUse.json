@@ -1,0 +1,22 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "agent_id": "acb5c8d6873d651ee",
+  "agent_type": "general-purpose",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -1 /Users/chuckcatron/Code/test-ideas/lilbuddy/",
+    "description": "List top-level contents of lilbuddy repo"
+  },
+  "tool_response": {
+    "stdout": "apps\ndocs\nfirmware\nnode_modules\npackage.json\npnpm-lock.yaml\npnpm-workspace.yaml\nREADME.md\ntsconfig.base.json",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_01Uny8TpAUdThNKRKgoNxMoE"
+}

@@ -1,0 +1,225 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10.15.1"
+
+jobs:
+  # ─── Fast gate: type-check + lint ───────────────────────────────────
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Run lint across all packages that have a lint script.
+      # `--if-present` skips packages without the script instead of failing.
+      - run: pnpm -r --if-present run lint
+
+  # ─── Format check ──────────────────────────────────────────────────
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --if-present run format:check
+
+  # ─── Test with coverage ─────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Run tests across all packages that have a test script.
+      - run: pnpm -r --if-present run test -- --coverage
+
+  # ─── Build check (ensures no broken imports / missing deps) ─────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --if-present run build
+
+  # ─── Security: dependency audit ─────────────────────────────────────
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level=high
+        continue-on-error: true
+
+  # ─── Security: check for secrets in the diff ───────────────────────
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        run: |
+          # Check diff for common secret patterns
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          DIFF=$(git diff "$BASE"...HEAD -- ':(exclude)pnpm-lock.yaml' ':(exclude)*.json' || true)
+
+          PATTERNS=(
+            'AKIA[0-9A-Z]{16}'                          # AWS access key
+            '(?i)(password|secret|api_key|apikey|token)\s*[:=]\s*["\x27][^"\x27]{8,}'  # credential assignments
+            '-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----' # private keys
+          )
+
+          FOUND=0
+          for pattern in "${PATTERNS[@]}"; do
+            if echo "$DIFF" | grep -PE "$pattern" | grep -v '^\-' | grep -v 'example\|placeholder\|test-password\|fake\|dummy' > /dev/null 2>&1; then
+              echo "::error::Potential secret found matching pattern: $pattern"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::Secrets detected in diff. Review the flagged patterns above."
+            exit 1
+          fi
+          echo "No secrets detected."
+
+  # ─── Lockfile integrity ─────────────────────────────────────────────
+  lockfile:
+    name: Lockfile Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      # Fails if package.json and pnpm-lock.yaml are out of sync
+      - run: pnpm install --frozen-lockfile
+
+  # ─── PR metadata validation ─────────────────────────────────────────
+  pr-metadata:
+    name: PR Metadata
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PR title matches commit convention
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Matches: type(AB#number): subject
+          # Also allows: type: subject (for chores without a ticket)
+          PATTERN='^(feature|feat|bugfix|fix|build|chore|ci|docs|perf|refactor|revert|style|test|translation|security)(\(AB#[0-9]+\))?: .+'
+          if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "::error::PR title does not match convention: type(AB#number): subject"
+            echo "  Got: $PR_TITLE"
+            echo "  Expected pattern: type(AB#1234): brief description"
+            exit 1
+          fi
+
+      - name: Check PR body references work item
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Warn (don't fail) if no AB# reference in body
+          if ! echo "$PR_BODY" | grep -qE 'AB#[0-9]+'; then
+            echo "::warning::PR body does not reference an Azure DevOps work item (AB#number)"
+          fi

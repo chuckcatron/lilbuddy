@@ -1,0 +1,15 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/tmp/lilbuddy-phase0-test.txt",
+    "old_string": "hello from phase 0\n",
+    "new_string": "hello from phase 0\ncapture run complete\n",
+    "replace_all": false
+  },
+  "tool_use_id": "toolu_015XEtFobucSDo1S7TskTGnA"
+}

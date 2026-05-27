@@ -1,0 +1,160 @@
+# Contract: AB#1133 — Stripe Backend Integration (Convex Actions + Webhook)
+
+## Meta
+- **Work Item**: AB#1133
+- **Type**: Feature
+- **Parent**: AB#1132 — Freemium Paywall & Subscription Flow
+- **Sprint**: Sprint 1 (2026-04-06 – 2026-04-19)
+- **Story Points**: 5
+- **Area**: Momentum\Backend
+- **Branch**: `feature/AB#1133-stripe-backend-integration`
+- **Commit format**: `feature(AB#1133): <subject>`
+
+## Scope
+
+### In Scope
+1. Create `convex/stripe.ts` with two Convex actions:
+   - `createCheckoutSession` — accepts userId + plan (monthly/annual), creates Stripe Checkout Session with `client_reference_id = tokenIdentifier`, returns session URL
+   - `createPortalSession` — accepts customerId, creates Stripe Customer Portal session, returns URL
+2. Add `/stripe/webhook` HTTP route to `convex/http.ts` handling:
+   - `checkout.session.completed` → set `isPremium: true`, store `stripeCustomerId` + `stripeSubscriptionId`
+   - `customer.subscription.updated` → update `isPremium` based on subscription status
+   - `customer.subscription.deleted` → set `isPremium: false`
+3. Add `stripeCustomerId` and `stripeSubscriptionId` as optional string fields to the `users` table in `convex/schema.ts`
+4. Add `setStripeCustomer` internal mutation to `convex/users.ts`
+5. Unit tests for webhook handler and mutations
+
+### Out of Scope
+- RevenueCat entitlement sync after Stripe events (Story 3 / AB#1135)
+- Web `/upgrade` and `/welcome` pages (Story 2 / AB#1134)
+- Web paywall UI components (Story 4 / AB#1136)
+- Mobile paywall changes (Story 5 / AB#1137)
+- Stripe Price ID creation in the Stripe Dashboard (manual setup)
+
+## Inputs
+
+Read these files before writing any code:
+
+| File | Why |
+|------|-----|
+| `convex/http.ts` | Existing HTTP router — add Stripe route alongside RevenueCat webhook (line 60) |
+| `convex/users.ts` | `setPremiumStatus` mutation pattern (lines 41-71) — follow for `setStripeCustomer` |
+| `convex/schema.ts` | `users` table definition (lines 5-10) — add Stripe fields here |
+| `convex/habits.ts:4` | `FREE_HABIT_LIMIT` — context for how premium gating works downstream |
+| `convex/_generated/ai/guidelines.md` | Convex API patterns that override training data |
+| `package.json` | `stripe` (^21.0.1) and `@stripe/stripe-js` (^9.0.0) already installed |
+| `tests/habits.test.ts` | Test pattern — pure logic extraction for unit testing |
+| `tests/setup.ts` | Test setup — `@testing-library/jest-dom/vitest` |
+| `vitest.config.ts` | Test config — jsdom environment, `@` alias resolves to project root |
+
+## Pattern References
+
+| Pattern | Source | Follow for |
+|---------|--------|------------|
+| HTTP webhook route + auth | `convex/http.ts:7-60` | Stripe webhook structure, secret verification, event routing |
+| Internal mutation for premium status | `convex/users.ts:41-71` | `setStripeCustomer` mutation — same DB lookup + patch/insert pattern |
+| Schema field additions | `convex/schema.ts:5-10` | Adding optional fields to `users` table |
+| Pure logic test extraction | `tests/habits.test.ts` | Extract testable logic, test with Vitest `describe`/`it`/`expect` |
+
+## Change Plan
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `convex/stripe.ts` | Convex actions (`createCheckoutSession`, `createPortalSession`) + internal helper functions |
+| `tests/stripe-webhook.test.ts` | Unit tests for webhook event handling and Stripe mutations |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `convex/http.ts` | Add `/stripe/webhook` route after line 60 (before `export default http`) |
+| `convex/schema.ts` | Add `stripeCustomerId: v.optional(v.string())` and `stripeSubscriptionId: v.optional(v.string())` to `users` table (lines 5-10) |
+| `convex/users.ts` | Add `setStripeCustomer` internal mutation (follow `setPremiumStatus` pattern) |
+
+### Files NOT to Touch
+- `convex/habits.ts` — premium gating logic already works, no changes needed
+- `convex/streaks.ts` — calendar gating already works
+- `convex/teams.ts` — team subscription is a separate flow
+- `app/` — web UI is Story 2 and Story 4
+- `mobile/` — mobile is Story 5
+- `components/PricingCard.tsx` — web component is Story 4
+
+## Dependencies
+
+### Prerequisites
+- Stripe account configured with two Price IDs (monthly + annual)
+- Convex environment variables set: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+
+### Blocks (stories that depend on this)
+- AB#1134 — Web /upgrade checkout page (calls `api.stripe.createCheckoutSession`)
+- AB#1135 — Stripe → RevenueCat sync (extends the webhook handler)
+- AB#1136 — Web paywall UI (calls `api.stripe.createCheckoutSession`)
+- AB#1138 — E2E testing
+
+### No Predecessors
+This is the first story in the chain — no blocking dependencies.
+
+## Verification Commands
+
+| Check | Command | Must Pass |
+|-------|---------|-----------|
+| Type-check | `npx tsc --noEmit` | Yes |
+| Lint | `npm run lint` | Yes |
+| Unit tests | `npm test` | Yes |
+| Build | `npm run build` | Yes |
+| Convex types | `npx convex dev` (verify schema compiles) | Yes |
+
+## Constraints
+
+- **Convex patterns**: Read `convex/_generated/ai/guidelines.md` before writing Convex code — it overrides training data
+- **Stripe SDK**: Use `stripe` package (^21.0.1) already in `package.json` — do NOT install a different version
+- **Webhook verification**: Stripe webhooks use signature verification via `stripe.webhooks.constructEvent()` — do NOT use Bearer token auth (that's the RevenueCat pattern)
+- **User lookup**: Always look up users by `tokenIdentifier` index (`by_token`) — this is the Clerk JWT subject
+- **TypeScript strict mode**: Enabled in `tsconfig.json` — no `any` types
+- **Environment variables**: Access via `process.env` in Convex HTTP actions
+- **Test pattern**: Extract pure logic into testable functions — Convex mutations can't be directly unit tested without a real backend
+
+## Expected Output
+
+After this story is complete:
+
+1. `convex/stripe.ts` exists with exported `createCheckoutSession` and `createPortalSession` actions
+2. `createCheckoutSession` returns a valid Stripe Checkout URL with `client_reference_id` set to the user's `tokenIdentifier`
+3. `createCheckoutSession` accepts a `plan` parameter ("monthly" or "annual") mapped to Stripe Price IDs
+4. `createPortalSession` returns a valid Stripe Customer Portal URL
+5. `/stripe/webhook` HTTP route exists in `convex/http.ts`
+6. Webhook verifies `STRIPE_WEBHOOK_SECRET` signature and returns 401 for invalid requests
+7. `checkout.session.completed` event sets `users.isPremium = true` and stores `stripeCustomerId` + `stripeSubscriptionId`
+8. `customer.subscription.updated` event updates `isPremium` based on subscription status
+9. `customer.subscription.deleted` event sets `users.isPremium = false`
+10. `users` schema includes `stripeCustomerId` and `stripeSubscriptionId` as optional string fields
+11. Existing RevenueCat webhook at `/revenuecat/webhook` continues to function unchanged
+
+## Edge Cases
+
+- **User doesn't exist yet when webhook fires**: Follow the `setPremiumStatus` pattern — create the user record if not found (see `convex/users.ts:61-68`)
+- **Duplicate webhook events**: Stripe may send the same event multiple times — ensure idempotent handling (patching the same values is safe)
+- **Missing `client_reference_id`**: If the Checkout Session has no `client_reference_id`, log a warning and return 200 (don't crash the webhook)
+- **Subscription updated to incomplete/past_due**: Map `customer.subscription.updated` status values — only `active` and `trialing` should set `isPremium: true`
+- **Webhook signature verification failure**: Return 401 immediately — do NOT process the event body
+
+## Acceptance Criteria
+
+### Story-Specific
+- [ ] `convex/stripe.ts` exports `createCheckoutSession` action returning a Stripe Checkout URL
+- [ ] `createCheckoutSession` accepts `plan` parameter (monthly/annual) mapped to Stripe Price IDs
+- [ ] `createPortalSession` action returns a Stripe Customer Portal URL
+- [ ] `/stripe/webhook` route verifies `STRIPE_WEBHOOK_SECRET` and rejects invalid signatures (401)
+- [ ] `checkout.session.completed` sets `users.isPremium = true` and stores Stripe IDs
+- [ ] `customer.subscription.deleted` sets `users.isPremium = false`
+- [ ] `users` schema has `stripeCustomerId` and `stripeSubscriptionId` optional fields
+- [ ] Existing RevenueCat webhook continues to function
+
+### Quality Gates
+- [ ] `npx tsc --noEmit` passes with no errors
+- [ ] `npm run lint` passes with no errors
+- [ ] `npm test` passes — all existing + new tests green
+- [ ] Test coverage meets 80% minimum for new code in `convex/stripe.ts`
+- [ ] `npm run build` succeeds
+- [ ] No `any` types introduced
+- [ ] No secrets or credentials committed

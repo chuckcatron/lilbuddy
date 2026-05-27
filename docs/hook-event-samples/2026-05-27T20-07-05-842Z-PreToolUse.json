@@ -1,0 +1,13 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "ToolSearch",
+  "tool_input": {
+    "query": "select:Grep,Write,Edit,WebFetch,Agent",
+    "max_results": 5
+  },
+  "tool_use_id": "toolu_01MsihD9Nzrkv6ZLv8RHQieM"
+}

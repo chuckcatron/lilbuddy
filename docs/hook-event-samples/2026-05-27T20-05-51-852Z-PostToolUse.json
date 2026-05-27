@@ -1,0 +1,22 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/decisions/0003-capture-method.md"
+  },
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/Users/chuckcatron/Code/test-ideas/lilbuddy/docs/decisions/0003-capture-method.md",
+      "content": "# 0003 — Phase 0 captures come from a real Claude Code session in `lilbuddy/`\n\n**Status:** Accepted\n**Date:** 2026-05-27\n**Phase 0 task:** 0.4\n\n## Decision\n\nCapture method: option **A** from [0002-hook-wiring](0002-hook-wiring.md). User opens a fresh Claude Code session inside `lilbuddy/`, drives a scripted varied workload, then returns control here for analysis.\n\nRejected:\n- **B** (mirror hooks one dir up) — bypasses the question of whether mid-session config reload works, and introduces a config file outside the project's source-controlled scope.\n- **C** (seed from docs) — violates the Phase 0 brief's \"real captured event payloads\" requirement and would make the go/no-go theoretical.\n\n## Why\n\nPhase 0 is the one phase whose entire purpose is empirical. Cutting corners here would invalidate the conclusion. Ten minutes of human-driven Claude Code work in `lilbuddy/` produces the dataset that determines whether the whole product is worth building.\n\n## How it runs\n\n1. Capture server is already running in the background (the agent driving this session started it; it logs to a pnpm task and listens on `127.0.0.1:8787`).\n2. User opens a new terminal, `cd /Users/chuckcatron/Code/test-ideas/lilbuddy`, runs `claude`.\n3. Once that session is up, user pastes the **driver prompt** below.\n4. User watches Claude do the work, approving permission prompts when they appear (Bash, WebFetch, Write under `/tmp`, etc.).\n5. After the session ends (`/quit`), user types `continue` back in *this* session.\n6. The agent here lists `docs/hook-event-samples/` and proceeds to 0.5.\n\n## Driver prompt (paste into the new `lilbuddy/` Claude session)\n\n> Please run through this short test sequence so I can capture hook events. Don't optimize — just do each step in order, even if it seems trivial.\n>\n> 1. Run `ls -la` in the project root (Bash).\n> 2. Read `apps/bridge/src/capture.ts` and tell me how many lines it is.\n> 3. Search the repo for any TODO or FIXME comments with grep.\n> 4. Create `/tmp/lilbuddy-phase0-test.txt` containing the text \"hello from phase 0\".\n> 5. Edit that file to add a second line: \"capture run complete\".\n> 6. Use WebFetch on `https://example.com` and tell me the page title.\n> 7. Spawn a subagent (general-purpose) and ask it to summarize the repo's layout in 3 bullets.\n> 8. Ask me a yes/no question about the project so I have a chance to approve something interactively.\n> 9. After I answer, that's the end — say \"done\" and stop.\n\nThat should exercise: `SessionStart`, `UserPromptSubmit`, `PreToolUse`/`PostToolUse` for Bash / Read / Grep / Write / Edit / WebFetch / Task, `Notification` (permission prompts on Bash + WebFetch, depending on the user's settings), `SubagentStop` (from step 7), `Stop` (between steps), and `SessionEnd` (on `/quit`).\n\n`PreCompact` is unlikely to fire in 10 minutes of work — skipped intentionally.\n\n## Hand-off contract\n\nWhen the user returns and types `continue`:\n- This session reads `docs/hook-event-samples/`, classifies the captured events by type, and writes 0.5's analysis decision.\n- If any of the four required signals (current tool, file path, token usage, \"waiting on you\") didn't show up in the captures, that's a Phase 0 finding — not a failure of the capture method.\n",
+      "numLines": 51,
+      "startLine": 1,
+      "totalLines": 51
+    }
+  },
+  "tool_use_id": "toolu_01E829CkAMAxcJESYvrG5DQo"
+}

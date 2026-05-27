@@ -1,0 +1,20 @@
+{
+  "session_id": "39a8e065-37cb-4598-b57b-74f43c0a883b",
+  "transcript_path": "/Users/chuckcatron/.claude/projects/-Users-chuckcatron-Code-test-ideas-lilbuddy/39a8e065-37cb-4598-b57b-74f43c0a883b.jsonl",
+  "cwd": "/Users/chuckcatron/Code/test-ideas/lilbuddy",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls /Users/chuckcatron/Code/test-ideas/lilbuddy/docs/hook-event-samples/*.json | sed 's/.*-//' | sort | uniq -c | sort -rn",
+    "description": "Count captured events by type"
+  },
+  "tool_response": {
+    "stdout": "  23 PreToolUse.json\n  22 PostToolUse.json\n   3 UserPromptSubmit.json\n   3 SubagentStop.json\n   2 Stop.json\n   1 SessionStart.json\n   1 Notification.json",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_01WXN8LNhNVU4EgiyosnJNKp"
+}
