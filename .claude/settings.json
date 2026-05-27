@@ -5,7 +5,13 @@
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy status)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy diff --stat)",
       "Bash(pnpm typecheck:*)",
-      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy log --oneline -3)"
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy log --oneline -3)",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy add .github/workflows/pr-checks.yml)",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy commit -m 'fix\\(AB#1153\\): replace trufflehog action with inline secrets scan')",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy push)",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy diff .claude/settings.json)",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy add .claude/settings.json)",
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy commit -m 'chore\\(AB#1153\\): update claude code settings with workflow permissions')"
     ],
     "additionalDirectories": [
       "/Users/chuckcatron/Code/test-ideas/lilbuddy/.github"
