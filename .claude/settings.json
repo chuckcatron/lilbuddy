@@ -1,0 +1,96 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/PreToolUse -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/PostToolUse -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/UserPromptSubmit -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/Stop -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/SubagentStop -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/Notification -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/SessionStart -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/SessionEnd -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sS -m 1 -X POST http://127.0.0.1:8787/PreCompact -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Claude does the work, lil' buddy lets you know how it's going.",
-  "packageManager": "pnpm@9.12.0",
+  "packageManager": "pnpm@10.15.1",
   "engines": {
     "node": ">=22"
   },
