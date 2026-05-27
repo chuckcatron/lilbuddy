@@ -6,6 +6,9 @@
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy diff --stat)",
       "Bash(pnpm typecheck:*)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy log --oneline -3)"
+    ],
+    "additionalDirectories": [
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.github"
     ]
   },
   "hooks": {
