@@ -1,0 +1,16 @@
+{
+  "name": "lil-buddy",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Claude does the work, lil' buddy lets you know how it's going.",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  }
+}
