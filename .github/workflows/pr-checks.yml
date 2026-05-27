@@ -148,9 +148,31 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --only-verified --diff
+      - name: Scan for secrets
+        run: |
+          # Check diff for common secret patterns
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          DIFF=$(git diff "$BASE"...HEAD -- ':(exclude)pnpm-lock.yaml' ':(exclude)*.json' || true)
+
+          PATTERNS=(
+            'AKIA[0-9A-Z]{16}'                          # AWS access key
+            '(?i)(password|secret|api_key|apikey|token)\s*[:=]\s*["\x27][^"\x27]{8,}'  # credential assignments
+            '-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----' # private keys
+          )
+
+          FOUND=0
+          for pattern in "${PATTERNS[@]}"; do
+            if echo "$DIFF" | grep -PE "$pattern" | grep -v '^\-' | grep -v 'example\|placeholder\|test-password\|fake\|dummy' > /dev/null 2>&1; then
+              echo "::error::Potential secret found matching pattern: $pattern"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::Secrets detected in diff. Review the flagged patterns above."
+            exit 1
+          fi
+          echo "No secrets detected."
 
   # ─── Lockfile integrity ─────────────────────────────────────────────
   lockfile:
