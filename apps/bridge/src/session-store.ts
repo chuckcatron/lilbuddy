@@ -144,6 +144,7 @@ export class SessionStore extends EventEmitter<SessionStoreEvents> {
     return next;
   }
 
+  /** Replace token totals for a session. Pass the caller-maintained cumulative value — the store does not accumulate. */
   updateTokens(sessionId: string, tokens: TokenUsage): void {
     const state = this.#sessions.get(sessionId);
     if (!state) return;

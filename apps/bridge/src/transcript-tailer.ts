@@ -1,5 +1,5 @@
-import { type FileHandle, open } from "node:fs/promises";
-import { type Stats, statSync, unwatchFile, watchFile } from "node:fs";
+import { access, constants, type FileHandle, open } from "node:fs/promises";
+import { type Stats, unwatchFile, watchFile } from "node:fs";
 
 import type { TokenUsage } from "@lilbuddy/shared";
 import { EMPTY_TOKEN_USAGE, addTokenUsage, parseTranscriptUsage } from "@lilbuddy/shared";
@@ -17,6 +17,7 @@ export class TranscriptTailer {
   #partialLine = "";
   #accumulated: TokenUsage = EMPTY_TOKEN_USAGE;
   #watching = false;
+  #reading = false;
   #waitTimer: ReturnType<typeof setTimeout> | undefined;
   #fileHandle: FileHandle | undefined;
 
@@ -36,10 +37,11 @@ export class TranscriptTailer {
   start(): void {
     if (this.#watching) return;
     this.#watching = true;
-    this.#waitForFile();
+    void this.#waitForFile();
   }
 
   async stop(): Promise<void> {
+    if (!this.#watching) return;
     this.#watching = false;
 
     if (this.#waitTimer !== undefined) {
@@ -59,20 +61,20 @@ export class TranscriptTailer {
   // Private
   // -------------------------------------------------------------------------
 
-  #waitForFile(): void {
+  async #waitForFile(): Promise<void> {
     if (!this.#watching) return;
 
-    if (this.#fileExists()) {
+    if (await this.#fileExists()) {
       this.#beginWatching();
       return;
     }
 
-    this.#waitTimer = setTimeout(() => this.#waitForFile(), 500);
+    this.#waitTimer = setTimeout(() => void this.#waitForFile(), 500);
   }
 
-  #fileExists(): boolean {
+  async #fileExists(): Promise<boolean> {
     try {
-      statSync(this.#path);
+      await access(this.#path, constants.F_OK);
       return true;
     } catch {
       return false;
@@ -89,7 +91,8 @@ export class TranscriptTailer {
   }
 
   async #readNewBytes(): Promise<void> {
-    if (!this.#watching) return;
+    if (!this.#watching || this.#reading) return;
+    this.#reading = true;
 
     try {
       if (!this.#fileHandle) {
@@ -103,10 +106,10 @@ export class TranscriptTailer {
 
       const bytesToRead = size - this.#offset;
       const buffer = Buffer.alloc(bytesToRead);
-      await this.#fileHandle.read(buffer, 0, bytesToRead, this.#offset);
-      this.#offset = size;
+      const { bytesRead } = await this.#fileHandle.read(buffer, 0, bytesToRead, this.#offset);
+      this.#offset += bytesRead;
 
-      const text = this.#partialLine + buffer.toString("utf8");
+      const text = this.#partialLine + buffer.subarray(0, bytesRead).toString("utf8");
       const lines = text.split("\n");
 
       // Last element is either empty (line ended with \n) or a partial line
@@ -129,7 +132,13 @@ export class TranscriptTailer {
         this.#onTokens(this.#accumulated);
       }
     } catch {
-      // File may have been deleted or become inaccessible — ignore and retry on next poll
+      // Handle stale file handle — close and re-open on next poll
+      if (this.#fileHandle) {
+        await this.#fileHandle.close().catch(() => {});
+        this.#fileHandle = undefined;
+      }
+    } finally {
+      this.#reading = false;
     }
   }
 
