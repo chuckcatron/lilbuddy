@@ -105,20 +105,53 @@ Wait. On "Go" → execute. On "Redo" → adjust, re-present. On "Stop" → end.
 > 2. **Redo** — tell me what to fix
 > 3. **Stop** — leave on branch, no PR yet
 
-Wait. On "PR" → push, create PR (stacked if predecessor exists), walk story to **Review** (PATCH `System.State = Review`), add PR URL comment to AZDO, then proceed to Phase 4. On "Redo" → fix, re-verify, re-present. On "Stop" → sync pairing context, end.
+Wait. On "PR" → push, create PR (stacked if predecessor exists), walk story to **Resolved** (PATCH `System.State = Resolved`), add PR URL comment to AZDO, then proceed to Phase 4. On "Redo" → fix, re-verify, re-present. On "Stop" → sync pairing context, end.
+
+**Note:** lilbuddy uses a 4-state workflow: `New → Active → Resolved → Closed`. There is no "Review" state. Use **Resolved** when a PR is created.
 
 ---
 
-## Phase 4: Cleanup
+## Phase 4: Code Review
 
-Run automatically after PR is created — no checkpoint, no user input needed.
+Run automatically after PR is created — no checkpoint needed for this phase.
 
 1. **Code review** — Run `/code-review` logic on the PR (see code-review.md). Present findings inline.
-2. **Switch to master** — `git checkout master`
-3. **Delete contract file** — Remove `.claude/prompt/AB#{number}-{kebab}.txt`
-4. **Sync pairing context** — Update phase to "PR created, cleanup complete"
 
-If the code review surfaces Critical issues, pause and present them before switching branches — the user may want to fix before the PR goes up for human review.
+If the code review surfaces Critical issues, pause and present them before proceeding — the user may want to fix before the PR goes up for human review.
+
+### CHECKPOINT 5
+
+> **PR is up and code review complete.**
+> PR: {PR URL}
+> AB#{number} state: Resolved
+> {code review summary — clean or issues found}
+>
+> Options:
+>
+> 1. **Wait** — I'll tell you when it's merged
+> 2. **Stop** — done for now
+
+Wait for the user. When the user says the PR is merged (e.g., "merged", "1155 is merged", "it's merged"), proceed to Phase 5.
+
+---
+
+## Phase 5: Post-Merge Cleanup
+
+Runs when the user confirms the PR is merged.
+
+1. **Walk story to Closed** — PATCH `System.State = Closed` via AZDO API
+2. **Switch to main** — `git checkout main` (stash if needed)
+3. **Pull latest** — `git pull` to get the merged changes
+4. **Delete local feature branch** — `git branch -d feature/AB#{number}-*`
+5. **Delete contract file** — Remove `.claude/prompt/AB#{number}-{kebab}.txt` and commit
+6. **Sync pairing context** — Update phase to "Closed, cleanup complete"
+
+Print summary:
+
+> **AB#{number} complete.**
+> Story: Closed
+> Branch cleaned up, main up to date.
+> Contract removed.
 
 ---
 
@@ -130,7 +163,8 @@ Sync after every checkpoint (silent). Update phase to reflect current state:
 - After CP2: "Contract generated"
 - After CP3: "Implementation in progress"
 - After CP4: "PR created" or "Implementation complete"
-- After Phase 4: "PR created, cleanup complete"
+- After Phase 4: "PR created, under review"
+- After Phase 5: "Closed, cleanup complete"
 
 Path: `/Users/chuckcatron/Library/CloudStorage/OneDrive-Copeland/Verdant-Pairing/AB#{number}/context.md`
 
