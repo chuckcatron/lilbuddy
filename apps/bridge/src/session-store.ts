@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 
-import type { HookPayload, SessionState } from "@lilbuddy/shared";
+import type { HookPayload, SessionState, TokenUsage } from "@lilbuddy/shared";
 import { EMPTY_TOKEN_USAGE, NO_NOTIFICATION, extractToolTarget } from "@lilbuddy/shared";
 
 // ---------------------------------------------------------------------------
@@ -142,5 +142,19 @@ export class SessionStore extends EventEmitter<SessionStoreEvents> {
     this.emit("stateChanged", next);
 
     return next;
+  }
+
+  updateTokens(sessionId: string, tokens: TokenUsage): void {
+    const state = this.#sessions.get(sessionId);
+    if (!state) return;
+
+    const next: SessionState = {
+      ...state,
+      tokens,
+      updatedAt: Date.now(),
+    };
+
+    this.#sessions.set(sessionId, next);
+    this.emit("stateChanged", next);
   }
 }
