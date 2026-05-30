@@ -1,0 +1,193 @@
+# Prompt Contract: Session State Machine
+
+## Context
+
+- **AB#:** 1155
+- **Story Type:** Feature
+- **Target repo(s):** apps/bridge (monorepo workspace package `@lilbuddy/bridge`)
+- **Target branch:** feature/AB#1155-session-state-machine
+- **Registry key(s):** N/A — no registry.json exists yet
+- **Commit format:** `type(AB#1155): subject`
+
+## Inputs
+
+- **Shared types:** packages/shared/src/session-state.ts — `SessionState`, `TokenUsage`, `EMPTY_TOKEN_USAGE`, `NO_NOTIFICATION`, `NotificationState`
+- **Hook events:** packages/shared/src/hook-events.ts — `HookPayload`, `HookEventName`, all 9 per-event payload interfaces
+- **Tool target:** packages/shared/src/tool-target.ts — `extractToolTarget(toolName, toolInput)`
+- **Shared barrel:** packages/shared/src/index.ts — all exports
+- **Capture server:** apps/bridge/src/capture.ts — existing bridge source, JSON parse pattern at lines 30-38
+- **Hook samples:** docs/hook-event-samples/ — 82 real captured JSON files from a live session
+- **CI config:** .github/workflows/pr-checks.yml — runs `pnpm -r --if-present run test -- --coverage`
+- **TSConfig base:** tsconfig.base.json — strict, ES2022, NodeNext, noUncheckedIndexedAccess
+
+## Pattern References
+
+**Node.js/TypeScript (monorepo workspace package):**
+- **Existing source:** apps/bridge/src/capture.ts — file structure, import style, ESM patterns
+- **Type definitions:** packages/shared/src/session-state.ts — readonly interface pattern, const sentinel values
+- **Discriminated union:** packages/shared/src/hook-events.ts — switch-on-`hook_event_name` pattern
+
+## Scope
+
+### In Scope
+
+1. Add `@lilbuddy/shared` as workspace dependency in apps/bridge/package.json
+2. Create `apps/bridge/src/session-store.ts` with:
+   - In-memory `Map<string, SessionState>` keyed by session_id
+   - Pure reducer function: `(state, hookEvent) => newState` switching on `hook_event_name`
+   - All 9 event type transitions per the story description
+   - Class extending Node `EventEmitter` that wraps the map + reducer and emits `"stateChanged"` after each mutation
+3. Set up vitest in apps/bridge (config, dev dependency, test script)
+4. Create `apps/bridge/src/session-store.test.ts` with:
+   - Unit tests for each of the 9 event type transitions
+   - Replay test: load all 82 hook samples, sort by timestamp, feed through reducer, assert final state
+   - Synthetic payloads for SessionEnd and PreCompact (no real samples exist)
+   - 80%+ coverage on new code
+
+### Out of Scope
+
+- Modifying capture.ts
+- WebSocket/HTTP integration (that's a later story)
+- Convex sync (later story)
+- Token usage tracking via transcript parsing (future — tokens field stays EMPTY_TOKEN_USAGE for now)
+- permissionMode tracking beyond what events provide
+
+## Dependencies / Prior Work
+
+- **AB#1154 (predecessor):** Capture infrastructure — DONE. Delivered shared types package, capture server, 82 hook samples.
+- No migrations, no cross-service calls, no multi-repo coordination.
+
+## Change Plan
+
+### Files to Create
+
+- `apps/bridge/src/session-store.ts` — SessionStore class + reducer
+- `apps/bridge/src/session-store.test.ts` — unit tests + replay test
+- `apps/bridge/vitest.config.ts` — vitest configuration
+
+### Files to Modify
+
+- `apps/bridge/package.json` — add `@lilbuddy/shared` workspace dep, add `vitest` dev dep, add `test` script
+- `apps/bridge/tsconfig.json` — may need to add test include or separate tsconfig
+
+### Files NOT to Touch
+
+- Anything in packages/shared/ (types are complete)
+- apps/bridge/src/capture.ts (capture server is done)
+- docs/hook-event-samples/ (read-only test fixtures)
+- Root package.json, tsconfig.base.json
+- .github/workflows/ (CI already runs `pnpm -r --if-present run test`)
+
+## Verification Commands
+
+- **Type-check:** `cd apps/bridge && npx tsc --noEmit`
+- **Lint:** N/A (no lint script configured in bridge yet)
+- **Unit tests:** `cd apps/bridge && npx vitest run`
+- **Coverage:** `cd apps/bridge && npx vitest run --coverage`
+- **Build:** N/A (no build script — uses tsx for dev)
+
+## Expected Output
+
+- Working SessionStore class that processes HookPayload events into SessionState snapshots
+- Pure reducer function that is independently testable
+- EventEmitter integration emitting `"stateChanged"` with updated SessionState
+- Comprehensive test suite replaying real captured events
+- 80%+ test coverage
+
+## Constraints
+
+### Pattern Conformance (MANDATORY — read before you write)
+
+Before writing ANY new code, you MUST:
+
+1. **Read `capture.ts` end-to-end** — match its import style, ESM patterns, and code conventions.
+2. **Read all shared type files** — understand every field of SessionState, every variant of HookPayload.
+3. **Read `extractToolTarget`** — understand what it returns for each tool type.
+4. **Reuse existing types** — import from `@lilbuddy/shared`, do NOT duplicate type definitions.
+
+### Code Quality Gates
+
+- MUST: KISS — simplest solution that fully satisfies the requirement
+- MUST: pure reducer function, side effects only in the store wrapper
+- MUST NOT: leave `TODO`, `FIXME`, or stub implementations
+- MUST NOT: use `any` — use proper types from `@lilbuddy/shared`
+- MUST NOT: copy-paste code — extract shared logic or import existing utilities
+- MUST NOT: hallucinate APIs, endpoints, or library methods
+
+### Test Quality Gates
+
+- Tests must assert behavior, not just exercise code paths
+- Test descriptions must describe expected behavior
+- Replay test must load actual JSON files from docs/hook-event-samples/, sort chronologically, and verify final state
+- SessionEnd and PreCompact must be tested with synthetic payloads (no real samples exist)
+
+### Self-Verification (MANDATORY — check your own work)
+
+After writing code and before reporting completion:
+
+1. **Type-check.** Run `cd apps/bridge && npx tsc --noEmit`. Fix all errors.
+2. **Run tests.** Run `cd apps/bridge && npx vitest run`. Fix all failures.
+3. **Coverage.** Run `cd apps/bridge && npx vitest run --coverage`. Must be >= 80%.
+4. **Re-read your own code.** Review every file you changed.
+5. **Verify the contract.** Walk through each Acceptance Criterion and confirm it passes.
+
+### Commit Checkpoints
+
+1. **Test infrastructure + dependency** — add vitest, `@lilbuddy/shared` dep, test script. Commit when `pnpm install` succeeds and `npx vitest run` runs (even with no tests yet).
+2. **Pure reducer + unit tests** — create session-store.ts with reducer function, create tests for all 9 event types. Commit when all unit tests pass.
+3. **EventEmitter store wrapper + replay test** — add SessionStore class extending EventEmitter, add replay test loading all 82 samples. Commit when all tests pass with 80%+ coverage.
+
+### Repo-Specific Anti-Patterns
+
+- Do NOT use CommonJS (`require`) — this is an ESM-only monorepo (`"type": "module"`)
+- Do NOT create a build step — bridge uses tsx for direct TS execution
+- Do NOT modify shared types to fit the reducer — the types are the contract
+
+### General Rules
+
+- AVOID: over-engineering, unnecessary abstractions, premature generalization
+- AVOID: modifying files outside the contract's scope without asking first
+- AVOID: "improving" or refactoring unrelated code
+
+## Edge Cases
+
+- [hallucinate]: stop immediately, revert, re-read the actual codebase
+- [test failures]: fix root cause — never skip or disable tests
+- [ambiguous requirement]: stop and ask before assuming
+- [lint/type errors]: fix before completing — never suppress with `@ts-ignore` or `eslint-disable`
+- [duplicate code detected]: stop, find existing implementation, reuse it
+- [pattern mismatch]: align with capture.ts conventions before continuing
+- [change plan diverges]: if you need to create/modify unlisted files, stop and ask
+
+## Acceptance Criteria
+
+### Universal
+
+- [ ] Type-check passes (`cd apps/bridge && npx tsc --noEmit`)
+- [ ] No regressions — all pre-existing tests still pass
+- [ ] No secrets or credentials committed
+- [ ] No duplicated code — all shared logic imported from `@lilbuddy/shared`
+- [ ] Code follows existing repo patterns (ESM, readonly interfaces, strict types)
+- [ ] Every file changed was re-read after editing to catch mistakes
+- [ ] No `TODO`, `FIXME`, or incomplete implementations
+- [ ] PR description follows `.claude/rules/pr-standards.md` format
+
+### Feature
+
+- [ ] Type checks pass
+- [ ] Test coverage >= 80% on new code
+- [ ] No `any` types introduced
+
+### Story-Specific
+
+- [ ] SessionStore creates a new SessionState on SessionStart with correct model, cwd, transcriptPath
+- [ ] PreToolUse sets currentTool and currentTarget using extractToolTarget()
+- [ ] PostToolUse clears currentTool, currentTarget, and currentToolUseId
+- [ ] Notification with permission_prompt sets notificationState correctly
+- [ ] Stop sets lastAssistantMessage and clears tool state
+- [ ] UserPromptSubmit clears notificationState
+- [ ] SessionEnd sets isActive to false
+- [ ] "stateChanged" event emits after every state mutation
+- [ ] Replaying the 82 captured hook events produces correct final state; SessionEnd and PreCompact tested with synthetic payloads
+- [ ] All unit tests pass with 80% coverage minimum
+- [ ] No `any` types used

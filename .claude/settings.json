@@ -11,7 +11,8 @@
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy push)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy diff .claude/settings.json)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy add .claude/settings.json)",
-      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy commit -m 'chore\\(AB#1153\\): update claude code settings with workflow permissions')"
+      "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy commit -m 'chore\\(AB#1153\\): update claude code settings with workflow permissions')",
+      "Read(//Users/chuckcatron/Code/test-ideas/lilbuddy/**)"
     ],
     "additionalDirectories": [
       "/Users/chuckcatron/Code/test-ideas/lilbuddy/.github"
