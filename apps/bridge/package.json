@@ -7,11 +7,18 @@
   "scripts": {
     "dev": "tsx watch src/capture.ts",
     "capture": "tsx src/capture.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lilbuddy/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^3.2.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.1"
   }
 }
