@@ -362,6 +362,60 @@ describe("SessionStore", () => {
     expect(store.get("session-a")!.model).toBe("model-a");
     expect(store.get("session-b")!.model).toBe("model-b");
   });
+
+  describe("updateTokens", () => {
+    it("merges tokens into session state", () => {
+      const store = new SessionStore();
+      store.apply(makeSessionStart());
+
+      const tokens = {
+        cacheCreationInputTokens: 100,
+        cacheReadInputTokens: 200,
+        inputTokens: 500,
+        outputTokens: 300,
+      };
+      store.updateTokens(BASE_FIELDS.session_id, tokens);
+
+      const state = store.get(BASE_FIELDS.session_id)!;
+      expect(state.tokens).toEqual(tokens);
+    });
+
+    it("emits stateChanged with updated tokens", () => {
+      const store = new SessionStore();
+      store.apply(makeSessionStart());
+
+      const listener = vi.fn();
+      store.on("stateChanged", listener);
+
+      const tokens = {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: 100,
+        outputTokens: 50,
+      };
+      store.updateTokens(BASE_FIELDS.session_id, tokens);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ tokens }),
+      );
+    });
+
+    it("does nothing for unknown session", () => {
+      const store = new SessionStore();
+      const listener = vi.fn();
+      store.on("stateChanged", listener);
+
+      store.updateTokens("nonexistent", {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: 100,
+        outputTokens: 50,
+      });
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
