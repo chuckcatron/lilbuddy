@@ -7,7 +7,7 @@ export const getActive = query({
   handler: async (ctx) => {
     return await ctx.db
       .query("sessions")
-      .filter((q) => q.eq(q.field("isActive"), true))
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
       .collect();
   },
 });

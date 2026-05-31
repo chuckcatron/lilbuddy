@@ -4,6 +4,15 @@ import { httpAction } from "./_generated/server.js";
 
 const http = httpRouter();
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i)! ^ b.charCodeAt(i)!;
+  }
+  return result === 0;
+}
+
 interface BridgeUpdateBody {
   sessionId: string;
   userId?: string;
@@ -64,7 +73,7 @@ http.route({
     }
 
     const token = authHeader.slice("Bearer ".length);
-    if (token !== apiKey) {
+    if (!timingSafeEqual(token, apiKey)) {
       return new Response("Invalid API key", { status: 403 });
     }
 

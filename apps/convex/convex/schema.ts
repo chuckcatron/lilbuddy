@@ -22,6 +22,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_sessionId", ["sessionId"])
+    .index("by_isActive", ["isActive"])
     .index("by_userId_isActive", ["userId", "isActive"]),
 
   users: defineTable({

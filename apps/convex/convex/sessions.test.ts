@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFunctionReference } from "convex/server";
 
 import schema from "./schema.js";
@@ -204,17 +204,22 @@ describe("sessions.getById", () => {
 // ---------------------------------------------------------------------------
 
 describe("HTTP POST /api/bridge/update", () => {
-  it("rejects requests without Authorization header", async () => {
+  beforeEach(() => {
     vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects requests without Authorization header", async () => {
     const t = convexTest(schema, modules);
 
     const response = await t.fetch("/api/bridge/update", { method: "POST" });
     expect(response.status).toBe(401);
-    vi.unstubAllEnvs();
   });
 
   it("rejects requests with invalid bearer token", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const response = await t.fetch("/api/bridge/update", {
@@ -222,11 +227,9 @@ describe("HTTP POST /api/bridge/update", () => {
       headers: { Authorization: "Bearer wrong-key" },
     });
     expect(response.status).toBe(403);
-    vi.unstubAllEnvs();
   });
 
   it("rejects requests with non-Bearer auth", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const response = await t.fetch("/api/bridge/update", {
@@ -234,7 +237,6 @@ describe("HTTP POST /api/bridge/update", () => {
       headers: { Authorization: "Basic dXNlcjpwYXNz" },
     });
     expect(response.status).toBe(401);
-    vi.unstubAllEnvs();
   });
 
   it("returns 500 when BRIDGE_API_KEY is not set", async () => {
@@ -246,11 +248,9 @@ describe("HTTP POST /api/bridge/update", () => {
       headers: { Authorization: "Bearer anything" },
     });
     expect(response.status).toBe(500);
-    vi.unstubAllEnvs();
   });
 
   it("rejects invalid JSON body", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const response = await t.fetch("/api/bridge/update", {
@@ -262,11 +262,9 @@ describe("HTTP POST /api/bridge/update", () => {
       body: "not json",
     });
     expect(response.status).toBe(400);
-    vi.unstubAllEnvs();
   });
 
   it("rejects invalid session payload", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const response = await t.fetch("/api/bridge/update", {
@@ -278,11 +276,9 @@ describe("HTTP POST /api/bridge/update", () => {
       body: JSON.stringify({ invalid: "payload" }),
     });
     expect(response.status).toBe(400);
-    vi.unstubAllEnvs();
   });
 
   it("upserts session with valid payload and auth", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const payload = makeSessionArgs({ sessionId: "http-test-1" });
@@ -303,11 +299,9 @@ describe("HTTP POST /api/bridge/update", () => {
     const session = await t.query(getByIdRef, { sessionId: "http-test-1" });
     expect(session).toBeDefined();
     expect(session!.model).toBe("claude-opus-4-6[1m]");
-    vi.unstubAllEnvs();
   });
 
   it("defaults userId to empty string when omitted", async () => {
-    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
     const t = convexTest(schema, modules);
 
     const { userId: _, ...payloadWithoutUserId } = makeSessionArgs({
@@ -326,6 +320,5 @@ describe("HTTP POST /api/bridge/update", () => {
 
     const session = await t.query(getByIdRef, { sessionId: "no-user" });
     expect(session!.userId).toBe("");
-    vi.unstubAllEnvs();
   });
 });
