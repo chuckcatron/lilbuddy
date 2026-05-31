@@ -101,7 +101,20 @@ export class Forwarder {
           method: "POST",
         });
 
-        if (res.ok) return;
+        if (res.ok) {
+          await res.body?.cancel();
+          return;
+        }
+
+        await res.body?.cancel();
+
+        // Don't retry client errors (except 429 Too Many Requests)
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          console.error(
+            `[forwarder] non-retryable ${res.status} — dropping session ${state.sessionId}`,
+          );
+          return;
+        }
 
         console.error(
           `[forwarder] POST failed (${res.status}) attempt ${attempt + 1}/${this.#maxRetries + 1}`,

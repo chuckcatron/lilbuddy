@@ -88,17 +88,35 @@ function onEvent(event: HookPayload): void {
 const server = new BridgeServer({ onEvent, port: PORT });
 
 // Start forwarder if Convex is configured
-if (CONVEX_SITE_URL && BRIDGE_API_KEY) {
-  const forwarder = new Forwarder({
-    apiKey: BRIDGE_API_KEY,
-    convexUrl: CONVEX_SITE_URL,
-    store,
-    userId: BRIDGE_USER_ID,
-  });
+const forwarder =
+  CONVEX_SITE_URL && BRIDGE_API_KEY
+    ? new Forwarder({
+        apiKey: BRIDGE_API_KEY,
+        convexUrl: CONVEX_SITE_URL,
+        store,
+        userId: BRIDGE_USER_ID,
+      })
+    : null;
+
+if (forwarder) {
   forwarder.start();
 } else {
   console.warn("[bridge] CONVEX_SITE_URL or BRIDGE_API_KEY not set — forwarding disabled");
 }
+
+// Graceful shutdown
+async function shutdown(): Promise<void> {
+  forwarder?.stop();
+  for (const tailer of tailers.values()) {
+    await tailer.stop();
+  }
+  tailers.clear();
+  await server.stop();
+  process.exit(0);
+}
+
+process.once("SIGTERM", () => void shutdown());
+process.once("SIGINT", () => void shutdown());
 
 if (CAPTURE_MODE) {
   console.log(`[bridge] capture mode enabled — writing to ${OUT_DIR}`);

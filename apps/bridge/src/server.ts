@@ -6,6 +6,8 @@ import type { HookPayload } from "@lilbuddy/shared";
 // BridgeServer — HTTP server that receives Claude Code hook events
 // ---------------------------------------------------------------------------
 
+const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MiB
+
 export type EventCallback = (event: HookPayload) => void;
 
 export interface BridgeServerOptions {
@@ -63,7 +65,17 @@ export class BridgeServer {
     }
 
     const chunks: Buffer[] = [];
-    for await (const chunk of req) chunks.push(chunk as Buffer);
+    let totalBytes = 0;
+    for await (const chunk of req) {
+      totalBytes += (chunk as Buffer).byteLength;
+      if (totalBytes > MAX_BODY_BYTES) {
+        res.writeHead(413);
+        res.end("Payload too large\n");
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk as Buffer);
+    }
     const raw = Buffer.concat(chunks).toString("utf8");
 
     let parsed: unknown;
@@ -76,11 +88,26 @@ export class BridgeServer {
       return;
     }
 
-    if (parsed && typeof parsed === "object" && "hook_event_name" in parsed) {
-      this.#onEvent(parsed as HookPayload);
+    if (isHookPayload(parsed)) {
+      this.#onEvent(parsed);
     }
 
     res.writeHead(204);
     res.end();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Runtime type guard — validates minimum shape before casting
+// ---------------------------------------------------------------------------
+
+function isHookPayload(value: unknown): value is HookPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj["hook_event_name"] === "string" &&
+    typeof obj["session_id"] === "string" &&
+    typeof obj["cwd"] === "string" &&
+    typeof obj["transcript_path"] === "string"
+  );
 }

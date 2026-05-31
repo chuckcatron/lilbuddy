@@ -301,6 +301,28 @@ describe("Forwarder", () => {
       consoleSpy.mockRestore();
     });
 
+    it("does not retry on non-retryable 4xx errors", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response("Bad Request", { status: 400 }),
+      );
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const forwarder = createForwarder({ debounceMs: 0, maxRetries: 3 });
+      forwarder.start();
+
+      store.apply(makeSessionStart());
+      await vi.advanceTimersByTimeAsync(10);
+
+      // Should only attempt once — 400 is non-retryable
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("non-retryable 400"),
+      );
+
+      forwarder.stop();
+      consoleSpy.mockRestore();
+    });
+
     it("gives up after max retries and logs error", async () => {
       fetchSpy.mockRejectedValue(new Error("persistent failure"));
 

@@ -102,6 +102,26 @@ describe("BridgeServer", () => {
     }
   });
 
+  it("returns 204 but does not call onEvent for payload missing required fields", async () => {
+    const onEvent = vi.fn();
+    const port = getPort();
+    const server = new BridgeServer({ onEvent, port });
+
+    await server.start();
+    try {
+      // Has hook_event_name but missing session_id, cwd, transcript_path
+      const res = await postToServer(
+        port,
+        JSON.stringify({ hook_event_name: "SessionStart" }),
+      );
+
+      expect(res.status).toBe(204);
+      expect(onEvent).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  });
+
   it("returns 405 for non-POST methods", async () => {
     const onEvent = vi.fn();
     const port = getPort();
