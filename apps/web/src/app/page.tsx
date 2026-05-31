@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "@lilbuddy/convex/api";
 
+import type { SessionDocument } from "@/components/SessionCard";
 import { SessionCard } from "@/components/SessionCard";
 
 export default function DashboardPage(): React.ReactElement {
@@ -36,7 +37,7 @@ export default function DashboardPage(): React.ReactElement {
       <h1 className="mb-8 text-2xl font-bold">lilbuddy</h1>
       <div className="grid gap-4">
         {sessions.map((session) => (
-          <SessionCard key={session._id} session={session} />
+          <SessionCard key={session._id} session={session as SessionDocument} />
         ))}
       </div>
     </main>

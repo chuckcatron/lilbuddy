@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SessionDocument } from "./SessionCard";
 import { SessionCard } from "./SessionCard";
 
-const baseSession = {
+const baseSession: SessionDocument = {
   _id: "abc123",
   sessionId: "sess-001",
   model: "claude-opus-4-6",
@@ -95,7 +96,7 @@ describe("SessionCard", () => {
     const session = {
       ...baseSession,
       startedAt: Date.now() - 5 * 60_000,
-      notificationState: "permission_prompt",
+      notificationState: "permission_prompt" as const,
       notificationMessage: "Allow?",
     };
     render(<SessionCard session={session} />);

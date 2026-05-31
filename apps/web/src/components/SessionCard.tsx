@@ -1,14 +1,14 @@
 import { NotificationBadge } from "./NotificationBadge";
 import { TokenDisplay } from "./TokenDisplay";
 
-interface SessionDocument {
+export interface SessionDocument {
   readonly _id: string;
   readonly sessionId: string;
   readonly model: string;
   readonly cwd: string;
   readonly currentTool?: string;
   readonly currentTarget?: string;
-  readonly notificationState: string;
+  readonly notificationState: "none" | "permission_prompt" | "idle_prompt";
   readonly notificationMessage?: string;
   readonly inputTokens: number;
   readonly outputTokens: number;

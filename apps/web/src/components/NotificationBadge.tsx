@@ -1,5 +1,7 @@
+type NotificationStateValue = "none" | "permission_prompt" | "idle_prompt";
+
 interface NotificationBadgeProps {
-  readonly state: string;
+  readonly state: NotificationStateValue;
   readonly message?: string;
 }
 
