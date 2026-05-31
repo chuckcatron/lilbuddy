@@ -1,0 +1,258 @@
+# Prompt Contract: Next.js Dashboard MVP
+
+## Context
+
+- **AB#:** 1159
+- **Story Type:** Feature
+- **Target repo(s):** apps/web (new pnpm workspace package `@lilbuddy/web`)
+- **Target branch:** feature/AB#1159-nextjs-dashboard-mvp
+- **Registry key(s):** N/A — no registry.json exists yet
+- **Commit format:** `type(AB#1159): subject`
+
+## Inputs
+
+- **Shared types:** packages/shared/src/session-state.ts — `SessionState`, `TokenUsage`, `NotificationState`, `ToolName`
+- **Shared helpers:** packages/shared/src/token-usage.ts — `totalTokens()` function
+- **Shared barrel:** packages/shared/src/index.ts — all exports from `@lilbuddy/shared`
+- **Convex schema:** apps/convex/convex/schema.ts — sessions table definition (flat fields, indexes)
+- **Convex queries:** apps/convex/convex/sessions.ts — `getActive`, `getById` queries
+- **Convex generated API:** apps/convex/convex/_generated/api.ts — typed API object for `useQuery`
+- **Root workspace:** pnpm-workspace.yaml — already includes `apps/*`
+- **Root package.json:** package.json — pnpm@10.15.1, Node >=22, recursive scripts
+- **CI config:** .github/workflows/pr-checks.yml — runs typecheck, lint, test, build recursively
+- **TSConfig base:** tsconfig.base.json — strict, ES2022, NodeNext
+- **Bridge package.json:** apps/bridge/package.json — workspace dep pattern (`@lilbuddy/shared`: workspace:*)
+- **Bridge vitest config:** apps/bridge/vitest.config.ts — vitest with V8 coverage, 80% thresholds
+
+## Pattern References
+
+**Frontend (Next.js — new stack in this repo):**
+- **Convex React patterns:** Follow Convex docs for `ConvexProvider`, `useQuery`, `ConvexReactClient`
+- **Test config pattern:** apps/bridge/vitest.config.ts — vitest setup with V8 coverage, 80% thresholds
+- **Test style pattern:** apps/bridge/src/session-store.test.ts — vitest with explicit imports (globals: false)
+- **Workspace dep pattern:** apps/bridge/package.json — `"@lilbuddy/shared": "workspace:*"`
+
+> No existing Next.js code in this repo. Follow Next.js 15 App Router conventions and Convex React integration patterns.
+
+## Scope
+
+### In Scope
+
+1. Scaffold Next.js 15 project in `apps/web/` (App Router, TypeScript, `"use client"` for real-time components)
+2. Add Convex React client (`convex` package) with `ConvexProvider` wrapper
+3. Add Tailwind CSS v4 for styling (CSS-first config)
+4. Create dashboard page listing all active sessions via `useQuery(api.sessions.getActive)`
+5. Create `SessionCard` component with: model, currentTool, currentTarget, notification state, tokens, lastAssistantMessage (truncated), session duration
+6. Create `TokenDisplay` component — formatted token count using `totalTokens()` from shared
+7. Create `NotificationBadge` component — color-coded for permission_prompt/idle_prompt/none, visually dominant for "waiting on you"
+8. Empty state when no active sessions
+9. Create `.env.example` with `NEXT_PUBLIC_CONVEX_URL` placeholder
+10. Component tests with vitest + React Testing Library, 80%+ coverage
+
+### Out of Scope
+
+- Authentication (Phase 3 — single-user for now)
+- Server-side rendering of session data (real-time client state, SSR adds no value)
+- Vercel deployment configuration (story says "deploys to Vercel" but actual deployment setup is ops work)
+- Modifying Convex schema or queries (AB#1157 — already done)
+- Modifying bridge code (AB#1158 — already done)
+- Polished UI/design system — this is functional MVP
+- Device pairing, user management, or any Phase 2+ features
+
+## Dependencies / Prior Work
+
+- **AB#1157 (predecessor):** Convex schema and backend — **merged to main**. `sessions.getActive` query exists.
+- **AB#1158 (predecessor):** Bridge forwarder and server — **merged to main**. Bridge pushes session state to Convex.
+- The Convex `api` object from `apps/convex/convex/_generated/` must be importable from `apps/web/`.
+
+## Change Plan
+
+### Files to Create
+
+- `apps/web/package.json` — workspace package `@lilbuddy/web`
+- `apps/web/next.config.ts` — Next.js config (transpilePackages for workspace deps)
+- `apps/web/tsconfig.json` — Next.js-specific TS config
+- `apps/web/postcss.config.mjs` — PostCSS with Tailwind
+- `apps/web/.env.example` — `NEXT_PUBLIC_CONVEX_URL=https://your-app.convex.cloud`
+- `apps/web/src/app/layout.tsx` — root layout with providers
+- `apps/web/src/app/page.tsx` — dashboard page
+- `apps/web/src/app/providers.tsx` — ConvexProvider wrapper ("use client")
+- `apps/web/src/app/globals.css` — Tailwind CSS imports + dark theme base
+- `apps/web/src/components/SessionCard.tsx` — session display component
+- `apps/web/src/components/TokenDisplay.tsx` — formatted token count
+- `apps/web/src/components/NotificationBadge.tsx` — color-coded notification badge
+- `apps/web/src/components/SessionCard.test.tsx` — SessionCard tests
+- `apps/web/src/components/TokenDisplay.test.tsx` — TokenDisplay tests
+- `apps/web/src/components/NotificationBadge.test.tsx` — NotificationBadge tests
+- `apps/web/vitest.config.ts` — vitest config for web package
+
+### Files to Modify
+
+- `apps/web/.gitkeep` — DELETE (replaced by actual project files)
+- `pnpm-lock.yaml` — auto-updated by `pnpm install`
+
+### Files NOT to Touch
+
+- Anything in packages/shared/ (types are consumed, not modified)
+- Anything in apps/bridge/ (bridge is done)
+- Anything in apps/convex/ (Convex backend is done)
+- Root package.json (recursive scripts already work)
+- .github/workflows/pr-checks.yml (already runs `pnpm -r --if-present`)
+
+## Verification Commands
+
+- **Build:** `cd apps/web && pnpm build`
+- **Type-check:** `cd apps/web && npx tsc --noEmit`
+- **Lint:** `cd apps/web && pnpm lint`
+- **Unit tests:** `cd apps/web && pnpm test`
+- **Coverage:** `cd apps/web && pnpm test -- --coverage`
+- **E2E tests:** N/A (no browser automation in this story)
+- **Dev server smoke test:** `cd apps/web && pnpm dev` (manual — verify no crash)
+
+## Expected Output
+
+- Working Next.js 15 dashboard app in `apps/web/`
+- Real-time session display via Convex subscriptions
+- Visually prominent "waiting on you" notification state
+- Component test suite with 80%+ coverage
+- Runs with `pnpm dev` from `apps/web/`
+
+## Constraints
+
+### Pattern Conformance (MANDATORY — read before you write)
+
+Before writing ANY new code, you MUST:
+
+1. **Read `packages/shared/src/session-state.ts` and `packages/shared/src/token-usage.ts`** — understand SessionState, TokenUsage, totalTokens(). The dashboard will use these types.
+2. **Read `apps/convex/convex/schema.ts`** — understand the flat field structure returned by Convex queries. The document shape differs from `SessionState` (flat tokens, string notificationState).
+3. **Read `apps/convex/convex/sessions.ts`** — understand what `getActive` returns (all fields of the sessions document).
+4. **Read `apps/bridge/vitest.config.ts`** — match test conventions (vitest, explicit imports, V8 coverage, 80% thresholds).
+5. **Read `apps/bridge/package.json`** — match workspace dep pattern.
+6. **Follow Next.js 15 App Router conventions** — `"use client"` directives, layout/page structure, metadata exports.
+7. **Follow Convex React conventions** — `ConvexReactClient`, `ConvexProvider`, `useQuery` with typed `api` object.
+
+### Data Shape Mapping
+
+The Convex `sessions.getActive` query returns documents with these fields (NOT the `SessionState` interface):
+- `sessionId`, `userId`, `model`, `cwd` — strings
+- `currentTool`, `currentTarget`, `lastAssistantMessage`, `notificationMessage` — optional strings
+- `notificationState` — string: `"none"` | `"permission_prompt"` | `"idle_prompt"`
+- `inputTokens`, `outputTokens`, `cacheCreationInputTokens`, `cacheReadInputTokens` — numbers
+- `permissionMode` — string
+- `isActive` — boolean
+- `startedAt`, `updatedAt` — numbers (timestamps)
+- `_id`, `_creationTime` — Convex system fields
+
+To use `totalTokens()` from `@lilbuddy/shared`, construct a `TokenUsage` object from the flat fields.
+
+### Convex API Import Strategy
+
+The `api` object for `useQuery(api.sessions.getActive)` lives in `apps/convex/convex/_generated/api.ts`. Options to make it importable from `apps/web`:
+- **Recommended:** Re-export from `apps/convex/package.json` exports field, then import as workspace dep
+- **Alternative:** Relative import `../../convex/convex/_generated/api` with TypeScript path alias
+- **Alternative:** Run `npx convex codegen` in `apps/web` with a `convex.json` pointing to the shared functions dir
+
+Choose the simplest approach that maintains type safety.
+
+### Code Quality Gates
+
+- MUST: KISS — simplest solution that fully satisfies the requirement
+- MUST: `"use client"` on components that use Convex hooks — Next.js App Router requirement
+- MUST NOT: leave `TODO`, `FIXME`, or stub implementations
+- MUST NOT: use `any` — use Convex's typed `Doc<"sessions">` and shared types
+- MUST NOT: add SSR data fetching — this is real-time client state
+- MUST NOT: add auth guards or login flows (Phase 3)
+- MUST NOT: over-style — functional dark theme, not a design system
+
+### Test Quality Gates
+
+- Tests must assert behavior, not just exercise code paths
+- Use vitest + `@testing-library/react` for component tests
+- Mock Convex hooks (`useQuery`) to test component rendering with various states
+- Test cases required:
+  - SessionCard renders all fields correctly
+  - SessionCard shows "idle" when no currentTool
+  - TokenDisplay formats numbers with commas/abbreviations
+  - NotificationBadge shows correct color/style per notification type
+  - NotificationBadge "waiting on you" state is visually distinct (has specific classes)
+  - Dashboard shows empty state when no sessions
+  - Dashboard renders multiple session cards
+
+### Self-Verification (MANDATORY — check your own work)
+
+After writing code and before reporting completion:
+
+1. **Build.** Run `cd apps/web && pnpm build`. Fix all errors.
+2. **Type-check.** Run `cd apps/web && npx tsc --noEmit`. Fix all errors.
+3. **Lint.** Run `cd apps/web && pnpm lint`. Fix all errors.
+4. **Run tests.** Run `cd apps/web && pnpm test`. Fix all failures.
+5. **Coverage.** Run `cd apps/web && pnpm test -- --coverage`. Must be >= 80%.
+6. **Re-read your own code.** Review every file you changed.
+7. **Verify the contract.** Walk through each Acceptance Criterion and confirm it passes.
+
+### Commit Checkpoints
+
+1. **Project scaffold** — package.json, next.config.ts, tsconfig.json, tailwind/postcss config, layout.tsx, globals.css, .env.example. Commit when `pnpm install` succeeds and `npx tsc --noEmit` passes.
+2. **Convex provider + page shell** — providers.tsx with ConvexProvider, page.tsx with basic structure, empty state. Commit when typecheck passes and dev server starts.
+3. **Components** — SessionCard, TokenDisplay, NotificationBadge. Commit when typecheck passes.
+4. **Dashboard integration** — Wire useQuery into page.tsx, render SessionCards. Commit when typecheck passes.
+5. **Tests** — All component tests + vitest config. Commit when all tests pass with 80%+ coverage.
+
+### Repo-Specific Anti-Patterns
+
+- Do NOT use CommonJS (`require`) — this is an ESM-only monorepo (`"type": "module"`)
+- Do NOT use `getServerSideProps` or `getStaticProps` — this is App Router, not Pages Router
+- Do NOT fetch session data server-side — Convex subscriptions are client-only real-time
+- Do NOT add a separate state management library (Redux, Zustand) — Convex IS the state layer
+- Do NOT add component libraries (shadcn, MUI, Chakra) — Tailwind-only for MVP
+- Do NOT store Convex URL in a non-`NEXT_PUBLIC_` env var — client-side code needs it
+
+### General Rules
+
+- AVOID: over-engineering, unnecessary abstractions, premature generalization
+- AVOID: modifying files outside the contract's scope without asking first
+- AVOID: "improving" or refactoring unrelated code
+
+## Edge Cases
+
+- [hallucinate]: stop immediately, revert, re-read the actual codebase
+- [test failures]: fix root cause — never skip or disable tests
+- [ambiguous requirement]: stop and ask before assuming
+- [lint/type errors]: fix before completing — never suppress with `@ts-ignore` or `eslint-disable`
+- [Convex API import fails]: try alternative import strategy from constraints section, report if none work
+- [change plan diverges]: if you need to create/modify unlisted files, stop and ask
+- [Next.js version mismatch]: use Next.js 15 (latest stable) — do not use canary/RC
+
+## Acceptance Criteria
+
+### Universal
+
+- [ ] Changes build successfully (`cd apps/web && pnpm build`)
+- [ ] No regressions — all pre-existing tests still pass (`pnpm -r --if-present run test`)
+- [ ] No secrets or credentials committed
+- [ ] No duplicated code — shared types/helpers imported from `@lilbuddy/shared`
+- [ ] Code follows Next.js 15 App Router + Convex conventions
+- [ ] Every file changed was re-read after editing to catch mistakes
+- [ ] No `TODO`, `FIXME`, or incomplete implementations
+- [ ] PR description follows `.claude/rules/pr-standards.md` format
+
+### Feature
+
+- [ ] Lint and type checks pass
+- [ ] Test coverage >= 80% on new/changed code
+- [ ] No `any` types introduced
+
+### Story-Specific
+
+- [ ] `apps/web/` contains a working Next.js 15 application
+- [ ] Dashboard shows all active sessions from Convex in real-time
+- [ ] Session cards display: model, current tool, current target, tokens, notification state, last message
+- [ ] "Waiting on you" state is visually prominent (color/size change, impossible to miss)
+- [ ] Empty state shown when no active sessions
+- [ ] Real-time updates work without page refresh (Convex subscriptions)
+- [ ] `pnpm dev` starts the dashboard locally (from apps/web/)
+- [ ] No auth required in Phase 1
+- [ ] All component tests pass with 80% coverage minimum
+- [ ] No `any` types used
+- [ ] Session duration is calculated and displayed (from startedAt)
+- [ ] Last assistant message is truncated to ~200 chars

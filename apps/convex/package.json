@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Convex backend — real-time cloud database for session state",
+  "exports": {
+    "./api": {
+      "import": "./convex/_generated/api.js",
+      "types": "./convex/_generated/api.d.ts"
+    }
+  },
   "scripts": {
     "dev": "convex dev",
     "typecheck": "tsc --noEmit",
