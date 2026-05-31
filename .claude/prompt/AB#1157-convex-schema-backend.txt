@@ -1,0 +1,219 @@
+# Prompt Contract: Convex Schema and Backend
+
+## Context
+
+- **AB#:** 1157
+- **Story Type:** Feature
+- **Target repo(s):** apps/convex (new pnpm workspace package `@lilbuddy/convex`)
+- **Target branch:** feature/AB#1157-convex-schema-backend
+- **Registry key(s):** N/A — no registry.json exists yet
+- **Commit format:** `type(AB#1157): subject`
+
+## Inputs
+
+- **Shared types:** packages/shared/src/session-state.ts — `SessionState`, `TokenUsage`, `NotificationState`, `EMPTY_TOKEN_USAGE`, `NO_NOTIFICATION`
+- **Shared barrel:** packages/shared/src/index.ts — all exports from `@lilbuddy/shared`
+- **Bridge store:** apps/bridge/src/session-store.ts — the producer of SessionState snapshots (future consumer of Convex via HTTP action)
+- **Root workspace:** pnpm-workspace.yaml — already includes `apps/*`
+- **Root package.json:** package.json — pnpm@10.15.1, Node >=22, recursive scripts
+- **CI config:** .github/workflows/pr-checks.yml — runs `pnpm -r --if-present run test -- --coverage`, typecheck, lint, build
+- **TSConfig base:** tsconfig.base.json — strict, ES2022, NodeNext
+- **Gitignore:** .gitignore — already covers `.env.local` and `.env.*`
+
+## Pattern References
+
+**Convex (new stack — no existing patterns in this repo):**
+- **Convex docs:** Follow Convex conventions for schema.ts, queries, mutations, HTTP actions
+- **Existing test pattern:** apps/bridge/vitest.config.ts — vitest setup with V8 coverage, 80% thresholds
+- **Existing test style:** apps/bridge/src/session-store.test.ts — vitest with explicit imports (globals: false)
+
+> No existing Convex code in this repo. Follow Convex's official patterns for schema definition, function signatures, and httpRouter.
+
+## Scope
+
+### In Scope
+
+1. Create `apps/convex/` as a new pnpm workspace package with `package.json`, `convex.json`, `tsconfig.json`
+2. Initialize Convex project structure (without running `npx convex init` — manual scaffold to control output)
+3. Define schema in `apps/convex/convex/schema.ts`:
+   - `sessions` table with flattened SessionState fields (no nested objects — Convex-compatible)
+   - `users` table skeleton (name, email, tokenIdentifier)
+   - `devices` table skeleton (userId, deviceId, firmwareVersion, lastSeen, isPaired)
+4. Create indexes: `by_sessionId` on sessions, `by_userId_isActive` on sessions
+5. Implement Convex functions:
+   - HTTP action `POST /api/bridge/update` — validates `BRIDGE_API_KEY` bearer token, upserts sessions
+   - Query `sessions.getActive` — returns all active sessions
+   - Query `sessions.getById` — returns single session by sessionId
+   - Mutation `sessions.upsert` — create or update session by sessionId
+   - Mutation `sessions.markEnded` — set isActive=false by sessionId
+6. Write tests for Convex functions using vitest (mock Convex internals as needed)
+
+### Out of Scope
+
+- Running `npx convex dev` or deploying to Convex cloud (no Convex account setup in this story)
+- Bridge integration (connecting bridge's SessionStore to the HTTP action — that's AB#1158/1159)
+- User authentication / Convex Auth (Phase 3)
+- Device pairing logic (Phase 4)
+- Frontend dashboard / React hooks (separate story)
+- Modifying any existing code in apps/bridge/ or packages/shared/
+
+## Dependencies / Prior Work
+
+- **AB#1154 (predecessor):** Shared types package — **Closed**. `@lilbuddy/shared` types are available.
+- **AB#1155:** Session state machine — **Closed**. Bridge's SessionStore produces the snapshots this backend will receive.
+- **AB#1156:** Transcript tailer — **Closed**. Token usage tracking is working.
+- No migrations, no cross-service calls.
+
+## Change Plan
+
+### Files to Create
+
+- `apps/convex/package.json` — workspace package `@lilbuddy/convex`
+- `apps/convex/tsconfig.json` — extends root tsconfig.base.json (with Convex-specific overrides)
+- `apps/convex/convex.json` — Convex project config (functions dir)
+- `apps/convex/convex/schema.ts` — schema definition (sessions, users, devices tables)
+- `apps/convex/convex/sessions.ts` — queries + mutations (getActive, getById, upsert, markEnded)
+- `apps/convex/convex/http.ts` — HTTP action router with POST /api/bridge/update
+- `apps/convex/convex/sessions.test.ts` — tests for queries, mutations, HTTP action
+- `apps/convex/vitest.config.ts` — vitest config for Convex package
+
+### Files to Modify
+
+- `pnpm-lock.yaml` — auto-updated by `pnpm install` after adding new workspace package
+
+### Files NOT to Touch
+
+- Anything in packages/shared/ (types are the contract)
+- Anything in apps/bridge/ (bridge integration is a later story)
+- Anything in apps/web/ (dashboard is a later story)
+- Root package.json (recursive scripts already work)
+- .github/workflows/pr-checks.yml (already runs `pnpm -r --if-present`)
+- .gitignore (already covers .env.local)
+
+## Verification Commands
+
+- **Type-check:** `cd apps/convex && npx tsc --noEmit`
+- **Lint:** N/A (no lint script configured yet — CI uses `--if-present`)
+- **Unit tests:** `cd apps/convex && npx vitest run`
+- **Coverage:** `cd apps/convex && npx vitest run --coverage`
+- **Build:** N/A (Convex functions are deployed directly, no build step)
+- **E2E tests:** N/A (requires Convex cloud — not in scope)
+
+## Expected Output
+
+- Working Convex schema with sessions, users, and devices tables
+- HTTP action that accepts SessionState JSON with bearer token auth
+- Query and mutation functions for session CRUD
+- Test suite covering happy paths and auth rejection
+- 80%+ test coverage on new code
+
+## Constraints
+
+### Pattern Conformance (MANDATORY — read before you write)
+
+Before writing ANY new code, you MUST:
+
+1. **Read `packages/shared/src/session-state.ts` end-to-end** — understand every field of SessionState, TokenUsage, NotificationState. The Convex schema must be a faithful flattened representation.
+2. **Read `apps/bridge/src/session-store.ts`** — understand the SessionState shape the bridge produces. The HTTP action must accept this shape.
+3. **Read `apps/bridge/vitest.config.ts` and `apps/bridge/src/session-store.test.ts`** — match test conventions (vitest, explicit imports, descriptive test names).
+4. **Follow Convex conventions** — use `v.` validators for schema, `query`/`mutation`/`httpAction` from `convex/server`, `Doc`/`Id` types from Convex codegen.
+
+### Flattening Rules
+
+The bridge sends `SessionState` with nested objects. Convex doesn't support nested objects well in schemas. Flatten as follows:
+
+- `tokens: TokenUsage` → `inputTokens`, `outputTokens`, `cacheCreationInputTokens`, `cacheReadInputTokens` (4 separate number fields)
+- `notificationState: NotificationState` → `notificationState` (string: `"none"` | `"permission_prompt"` | `"idle_prompt"`) + `notificationMessage` (optional string)
+- Omit `transcriptPath` (local-only, not needed in cloud)
+- Omit `currentToolUseId` (bridge-internal, not needed in dashboard)
+
+### Code Quality Gates
+
+- MUST: KISS — simplest solution that fully satisfies the requirement
+- MUST NOT: leave `TODO`, `FIXME`, or stub implementations
+- MUST NOT: use `any` — use Convex's typed validators and generated types
+- MUST NOT: copy-paste shared types — import from `@lilbuddy/shared` where applicable, define Convex-native schema independently where needed
+- MUST NOT: hallucinate Convex APIs — verify function signatures against Convex docs
+
+### Test Quality Gates
+
+- Tests must assert behavior, not just exercise code paths
+- Test the HTTP action auth rejection (missing/invalid bearer token)
+- Test the upsert mutation (create new + update existing)
+- Test getActive returns only active sessions
+- Test markEnded sets isActive to false
+- Use `convex-test` package if available, otherwise mock Convex context
+
+### Self-Verification (MANDATORY — check your own work)
+
+After writing code and before reporting completion:
+
+1. **Type-check.** Run `cd apps/convex && npx tsc --noEmit`. Fix all errors.
+2. **Run tests.** Run `cd apps/convex && npx vitest run`. Fix all failures.
+3. **Coverage.** Run `cd apps/convex && npx vitest run --coverage`. Must be >= 80%.
+4. **Re-read your own code.** Review every file you changed.
+5. **Verify the contract.** Walk through each Acceptance Criterion and confirm it passes.
+
+### Commit Checkpoints
+
+1. **Project scaffold** — package.json, convex.json, tsconfig.json, vitest.config.ts. Commit when `pnpm install` succeeds and `npx tsc --noEmit` passes.
+2. **Schema + indexes** — convex/schema.ts with sessions, users, devices tables and indexes. Commit when typecheck passes.
+3. **Queries + mutations** — convex/sessions.ts with getActive, getById, upsert, markEnded. Commit when typecheck passes.
+4. **HTTP action** — convex/http.ts with POST /api/bridge/update and bearer token validation. Commit when typecheck passes.
+5. **Tests** — convex/sessions.test.ts with full test suite. Commit when all tests pass with 80%+ coverage.
+
+### Repo-Specific Anti-Patterns
+
+- Do NOT use CommonJS (`require`) — this is an ESM-only monorepo (`"type": "module"`)
+- Do NOT import Convex server functions in tests without proper mocking — Convex functions run in their own runtime
+- Do NOT store nested objects in Convex schema — flatten everything
+- Do NOT hardcode the BRIDGE_API_KEY — read from Convex environment variables
+
+### General Rules
+
+- AVOID: over-engineering, unnecessary abstractions, premature generalization
+- AVOID: modifying files outside the contract's scope without asking first
+- AVOID: "improving" or refactoring unrelated code
+
+## Edge Cases
+
+- [hallucinate]: stop immediately, revert, re-read the actual codebase
+- [test failures]: fix root cause — never skip or disable tests
+- [ambiguous requirement]: stop and ask before assuming
+- [lint/type errors]: fix before completing — never suppress with `@ts-ignore` or `eslint-disable`
+- [duplicate code detected]: stop, find existing implementation, reuse it
+- [Convex API mismatch]: if Convex APIs don't match expectations, stop and report — do NOT force it
+- [change plan diverges]: if you need to create/modify unlisted files, stop and ask
+
+## Acceptance Criteria
+
+### Universal
+
+- [ ] Type-check passes (`cd apps/convex && npx tsc --noEmit`)
+- [ ] No regressions — all pre-existing tests still pass (`pnpm -r run test`)
+- [ ] No secrets or credentials committed
+- [ ] No duplicated code — shared types imported where applicable
+- [ ] Code follows Convex conventions (validators, function signatures, httpRouter)
+- [ ] Every file changed was re-read after editing to catch mistakes
+- [ ] No `TODO`, `FIXME`, or incomplete implementations
+- [ ] PR description follows `.claude/rules/pr-standards.md` format
+
+### Feature
+
+- [ ] Type checks pass
+- [ ] Test coverage >= 80% on new code
+- [ ] No `any` types introduced
+
+### Story-Specific
+
+- [ ] `apps/convex/` exists as a pnpm workspace package with `convex.json`
+- [ ] Schema defines `sessions`, `users`, and `devices` tables with correct field types
+- [ ] Indexes exist for `by_sessionId` and `by_userId_isActive` on sessions
+- [ ] HTTP action `POST /api/bridge/update` accepts valid SessionState JSON and upserts sessions
+- [ ] HTTP action rejects requests without valid `Authorization: Bearer` header
+- [ ] Query `sessions.getActive` returns only active sessions (isActive=true)
+- [ ] Query `sessions.getById` returns the correct session by sessionId
+- [ ] Mutation `sessions.markEnded` sets isActive to false
+- [ ] `npx tsc --noEmit` passes without errors
+- [ ] No secrets committed — `.env.local` is already gitignored
+- [ ] All unit tests pass with 80% coverage minimum
