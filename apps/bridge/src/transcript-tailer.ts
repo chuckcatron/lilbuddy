@@ -9,20 +9,24 @@ import { EMPTY_TOKEN_USAGE, addTokenUsage, parseTranscriptUsage } from "@lilbudd
 // ---------------------------------------------------------------------------
 
 export type TokenUpdateCallback = (tokens: TokenUsage) => void;
+export type ModelUpdateCallback = (model: string) => void;
 
 export class TranscriptTailer {
   readonly #path: string;
   readonly #onTokens: TokenUpdateCallback;
+  readonly #onModel: ModelUpdateCallback | undefined;
   #offset = 0;
   #partialLine = "";
   #accumulated: TokenUsage = EMPTY_TOKEN_USAGE;
+  #model: string | undefined;
   #watching = false;
   #waitTimer: ReturnType<typeof setTimeout> | undefined;
   #fileHandle: FileHandle | undefined;
 
-  constructor(path: string, onTokens: TokenUpdateCallback) {
+  constructor(path: string, onTokens: TokenUpdateCallback, onModel?: ModelUpdateCallback) {
     this.#path = path;
     this.#onTokens = onTokens;
+    this.#onModel = onModel;
   }
 
   get accumulated(): TokenUsage {
@@ -118,9 +122,16 @@ export class TranscriptTailer {
         const trimmed = line.trim();
         if (!trimmed) continue;
 
-        const usage = this.#extractUsage(trimmed);
-        if (usage) {
-          this.#accumulated = addTokenUsage(this.#accumulated, usage);
+        const parsed = this.#parseAssistantLine(trimmed);
+        if (!parsed) continue;
+
+        if (parsed.model && this.#model === undefined) {
+          this.#model = parsed.model;
+          this.#onModel?.(parsed.model);
+        }
+
+        if (parsed.usage) {
+          this.#accumulated = addTokenUsage(this.#accumulated, parsed.usage);
           updated = true;
         }
       }
@@ -133,7 +144,7 @@ export class TranscriptTailer {
     }
   }
 
-  #extractUsage(jsonLine: string): TokenUsage | undefined {
+  #parseAssistantLine(jsonLine: string): { model?: string; usage?: TokenUsage } | undefined {
     try {
       const record = JSON.parse(jsonLine) as Record<string, unknown>;
 
@@ -142,10 +153,20 @@ export class TranscriptTailer {
       const message = record["message"];
       if (typeof message !== "object" || message === null) return undefined;
 
-      const usage = (message as Record<string, unknown>)["usage"];
-      if (typeof usage !== "object" || usage === null) return undefined;
+      const messageObj = message as Record<string, unknown>;
+      const result: { model?: string; usage?: TokenUsage } = {};
 
-      return parseTranscriptUsage(usage as Record<string, unknown>);
+      const model = messageObj["model"];
+      if (typeof model === "string" && model.length > 0) {
+        result.model = model;
+      }
+
+      const usage = messageObj["usage"];
+      if (typeof usage === "object" && usage !== null) {
+        result.usage = parseTranscriptUsage(usage as Record<string, unknown>);
+      }
+
+      return result;
     } catch {
       return undefined;
     }

@@ -416,6 +416,55 @@ describe("SessionStore", () => {
       expect(listener).not.toHaveBeenCalled();
     });
   });
+
+  describe("updateModel", () => {
+    it("sets the model on session state", () => {
+      const store = new SessionStore();
+      store.apply(makeSessionStart({ model: "" }));
+
+      store.updateModel(BASE_FIELDS.session_id, "claude-opus-4-8");
+
+      expect(store.get(BASE_FIELDS.session_id)!.model).toBe("claude-opus-4-8");
+    });
+
+    it("emits stateChanged with the updated model", () => {
+      const store = new SessionStore();
+      store.apply(makeSessionStart({ model: "" }));
+
+      const listener = vi.fn();
+      store.on("stateChanged", listener);
+
+      store.updateModel(BASE_FIELDS.session_id, "claude-opus-4-8");
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ model: "claude-opus-4-8" }),
+      );
+    });
+
+    it("does nothing for unknown session", () => {
+      const store = new SessionStore();
+      const listener = vi.fn();
+      store.on("stateChanged", listener);
+
+      store.updateModel("nonexistent", "claude-opus-4-8");
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the model is empty or unchanged", () => {
+      const store = new SessionStore();
+      store.apply(makeSessionStart({ model: "claude-opus-4-8" }));
+
+      const listener = vi.fn();
+      store.on("stateChanged", listener);
+
+      store.updateModel(BASE_FIELDS.session_id, ""); // empty → ignored
+      store.updateModel(BASE_FIELDS.session_id, "claude-opus-4-8"); // unchanged → ignored
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

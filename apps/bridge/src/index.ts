@@ -57,12 +57,18 @@ const tailers = new Map<string, TranscriptTailer>();
 function onEvent(event: HookPayload): void {
   store.apply(event);
 
-  // Start transcript tailer on SessionStart
-  if (event.hook_event_name === "SessionStart" && !tailers.has(event.session_id)) {
-    const tailer = new TranscriptTailer(event.transcript_path, (tokens) => {
-      store.updateTokens(event.session_id, tokens);
-    });
-    tailers.set(event.session_id, tailer);
+  // Start a transcript tailer the first time we see any session with a
+  // transcript path — not just on SessionStart. Adopting mid-session lets the
+  // bridge backfill token usage AND the model (read from the transcript) for
+  // sessions that were already running when the bridge started.
+  if (event.transcript_path && !tailers.has(event.session_id)) {
+    const { session_id: sessionId } = event;
+    const tailer = new TranscriptTailer(
+      event.transcript_path,
+      (tokens) => store.updateTokens(sessionId, tokens),
+      (model) => store.updateModel(sessionId, model),
+    );
+    tailers.set(sessionId, tailer);
     tailer.start();
   }
 
