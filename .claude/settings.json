@@ -12,10 +12,13 @@
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy diff .claude/settings.json)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy add .claude/settings.json)",
       "Bash(git -C /Users/chuckcatron/Code/test-ideas/lilbuddy commit -m 'chore\\(AB#1153\\): update claude code settings with workflow permissions')",
-      "Read(//Users/chuckcatron/Code/test-ideas/lilbuddy/**)"
+      "Read(//Users/chuckcatron/Code/test-ideas/lilbuddy/**)",
+      "Bash(pnpm test:coverage)",
+      "Bash(node -e \"const p = require.resolve\\('@lilbuddy/convex/api'\\)\")"
     ],
     "additionalDirectories": [
-      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.github"
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.github",
+      "/Users/chuckcatron/Code/test-ideas/lilbuddy/.claude/prompt"
     ]
   },
   "hooks": {

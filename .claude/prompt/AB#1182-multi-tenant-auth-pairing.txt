@@ -1,0 +1,130 @@
+# Prompt Contract: Multi-Tenant Auth + Device Pairing
+
+## Context
+
+- **AB#:** 1182 (User Story under Feature #1153 — Phase 1: Cloud Spine)
+- **Story Type:** User Story
+- **Target repo(s):** apps/convex (primary), apps/bridge, apps/web (follow-on)
+- **Target branch:** feature/AB#1182-multi-tenant-auth-pairing
+- **Commit format:** `type(AB#1182): subject`
+- **Phase:** Phase 3 — the authentication work deferred by AB#1159 ("Out of Scope — Phase 3, single-user for now")
+
+## Problem
+
+Today the system is single-user and insecure for multi-customer use:
+
+- Ingest auth is ONE shared secret `BRIDGE_API_KEY`, timing-safe-compared in
+  apps/convex/convex/http.ts:61-78. Every bridge would send the same key.
+- The writer SELF-DECLARES its identity: `userId` comes from the request body
+  (apps/convex/convex/http.ts:93) / `BRIDGE_USER_ID` env (apps/bridge/src/index.ts:19),
+  defaulting to "". A caller can claim any userId.
+- The dashboard query `sessions.getActive` (apps/convex/convex/sessions.ts:5-13)
+  returns EVERY active session globally — no per-user scoping.
+- The `users` and `devices` tables (apps/convex/convex/schema.ts:28-40) and the
+  `by_userId_isActive` index (schema.ts:26) exist but are unused.
+
+## Core Design
+
+Replace "one global API key + self-declared userId" with per-credential tokens
+that the SERVER resolves to a userId. Two credential kinds:
+
+- **bridge token** — issued when a user installs the bridge and logs in;
+  identifies whose Claude sessions these are.
+- **device token** — issued when a device is paired; identifies which user a
+  display belongs to.
+
+Neither bridge nor device ever sends `userId` in the body — the server derives
+it from the token hash. Tokens are stored HASHED (sha256), raw value shown once.
+
+## Inputs (existing code to build on)
+
+- apps/convex/convex/schema.ts — `sessions` (has `userId` + `by_userId_isActive`),
+  `users` (name,email,tokenIdentifier), `devices` (userId,deviceId,isPaired)
+- apps/convex/convex/sessions.ts — `getActive`, `getById`, `upsert`, `markEnded`
+- apps/convex/convex/http.ts — `/api/bridge/update` POST, Bearer check, calls `sessions:upsert`
+- apps/bridge/src/forwarder.ts — sends Bearer apiKey + body incl. userId (#toBody, line 138-161)
+- apps/bridge/src/index.ts — config: CONVEX_SITE_URL, BRIDGE_API_KEY, BRIDGE_USER_ID
+- packages/shared/src/session-state.ts — `SessionState` (no userId field today)
+
+## Scope
+
+### In Scope (Convex — primary)
+
+1. Schema: add `authTokens` table (tokenHash, userId, kind:"bridge"|"device",
+   label?, deviceId?, createdAt, lastUsedAt?, revokedAt?) with `by_tokenHash`,
+   `by_userId` indexes.
+2. Schema: add `pairingCodes` table (code, deviceId, firmwareVersion,
+   claimedByUserId?, deviceTokenHash?, expiresAt) with `by_code`, `by_deviceId`.
+3. authTokens.ts: `resolveToken({tokenHash, kind}) -> userId | null`
+   (rejects revoked / wrong-kind). Internal query.
+4. http.ts: rewrite `/api/bridge/update` to look up the Bearer token via
+   `resolveToken` and set `userId` from the token — IGNORE any userId in the body.
+   Return 403 on unknown/revoked token.
+5. devices.ts: `announce({deviceId, firmwareVersion}) -> {code}` — creates a
+   short-TTL single-use pairingCode (device calls this, unauthenticated-but-rate-limited).
+6. devices.ts: `claimPairingCode({code})` — REQUIRES auth (logged-in human);
+   verifies code valid/unexpired, mints a device token, inserts authTokens(kind:device)
+   + devices(isPaired:true), patches pairingCode. Returns ok.
+7. devices.ts: device claim/poll endpoint returns the freshly-minted raw device
+   token EXACTLY ONCE, then deletes the pairing code (only the hash persists).
+8. sessions.ts: replace/augment `getActive` with `getActiveForUser` — uses
+   `ctx.auth.getUserIdentity()` + `by_userId_isActive` to scope to the caller.
+9. Token utils: `generateToken()` (CSPRNG) + `sha256()` helper. Never log raw tokens.
+10. Unit tests (vitest) for resolveToken, claim flow (valid/expired/already-claimed/
+    unauthorized), ingest userId-from-token (not body), scoped query isolation.
+    80%+ coverage.
+
+### In Scope (clients — minimal, can be split into follow-on stories)
+
+11. Bridge: drop BRIDGE_USER_ID; treat BRIDGE_API_KEY as the per-user bridge
+    token; stop sending `userId` in #toBody (forwarder.ts:159).
+12. Dashboard: wrap in Convex Auth; swap `getActive` -> `getActiveForUser`.
+
+### Out of Scope
+
+- Firmware captive-portal WiFi provisioning + on-device pairing UI (separate story)
+- Installer/packaging for the bridge (separate ops story)
+- Billing / org / team management
+- Token rotation UI / device management dashboard (future)
+
+## Acceptance Criteria
+
+1. A bridge token resolves server-side to its owning userId; sessions are stored
+   under that userId regardless of any `userId` sent in the request body.
+2. A request with an unknown or revoked token is rejected (403); a valid one succeeds.
+3. `claimPairingCode` requires an authenticated user and binds the device to that user.
+4. A pairing code is single-use and expires; expired/used codes are rejected.
+5. Raw tokens are never persisted (only sha256 hashes) and never logged.
+6. `getActiveForUser` returns only the caller's sessions; one user cannot see
+   another user's sessions (covered by an isolation test).
+7. Existing `userId: ""` rows are handled (backfill or legacy-bucket documented).
+8. All unit tests pass.
+9. Test coverage >= 80%.
+10. No regressions in existing bridge -> Convex -> dashboard flow.
+11. No `any` types; TypeScript strict; imports alphabetized.
+
+## Verification Commands
+
+- Type-check: `cd apps/convex && npx tsc --noEmit`  (+ apps/bridge, apps/web)
+- Tests: `pnpm -r test`
+- Coverage: `pnpm -r test -- --coverage`  (or `pnpm test:coverage`)
+- Convex codegen sanity: `node -e "const p = require.resolve('@lilbuddy/convex/api')"`
+
+## Risks / Edge Cases
+
+- Pairing-code brute force: short TTL + single-use + rate-limit claim; use a
+  sufficiently large code space.
+- Convex wall-clock: pass timestamps in / use the scheduler; don't assume free Date.now().
+- Migration: existing sessions have userId "" — backfill to a legacy user or
+  treat empty as legacy during cutover; document the choice.
+- Keep ingest auth a single indexed hash lookup so the bridge POST stays sub-second
+  (Claude hooks are fire-and-forget with a 1s curl timeout — never block Claude).
+- timingSafeEqual is no longer needed for the shared key path; ensure no constant
+  is left comparing against the removed BRIDGE_API_KEY.
+
+## Dependencies / Prior Work
+
+- AB#1157 (Convex schema/backend) — merged. Tables to extend.
+- AB#1158 (bridge forwarder/server) — merged. Forwarder to adjust.
+- AB#1159 (dashboard MVP) — merged. Dashboard query to scope + add auth.
+- Parent: Feature #1153 — Phase 1: Cloud Spine (bridge → Convex → dashboard).
