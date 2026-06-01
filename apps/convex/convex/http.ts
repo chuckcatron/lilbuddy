@@ -53,6 +53,42 @@ function isBridgeUpdateBody(value: unknown): value is BridgeUpdateBody {
 }
 
 const upsertRef = makeFunctionReference<"mutation">("sessions:upsert");
+const getActiveRef = makeFunctionReference<"query">("sessions:getActive");
+
+http.route({
+  path: "/api/device/session",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const apiKey = process.env.BRIDGE_API_KEY;
+    if (!apiKey) {
+      return new Response("Server misconfigured: BRIDGE_API_KEY not set", {
+        status: 500,
+      });
+    }
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response("Missing or malformed Authorization header", {
+        status: 401,
+      });
+    }
+
+    const token = authHeader.slice("Bearer ".length);
+    if (!timingSafeEqual(token, apiKey)) {
+      return new Response("Invalid API key", { status: 403 });
+    }
+
+    const activeSessions = await ctx.runQuery(getActiveRef);
+    if (activeSessions.length === 0) {
+      return new Response(null, { status: 204 });
+    }
+
+    return new Response(JSON.stringify(activeSessions[0]), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
 
 http.route({
   path: "/api/bridge/update",

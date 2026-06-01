@@ -200,6 +200,179 @@ describe("sessions.getById", () => {
 });
 
 // ---------------------------------------------------------------------------
+// HTTP action: GET /api/device/session
+// ---------------------------------------------------------------------------
+
+describe("HTTP GET /api/device/session", () => {
+  beforeEach(() => {
+    vi.stubEnv("BRIDGE_API_KEY", "test-secret-key");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns 200 with active session JSON when one exists", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(
+      upsertRef,
+      makeSessionArgs({ sessionId: "active-session", model: "claude-opus-4-6[1m]" }),
+    );
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer test-secret-key" },
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.sessionId).toBe("active-session");
+    expect(body.model).toBe("claude-opus-4-6[1m]");
+    expect(body.isActive).toBe(true);
+  });
+
+  it("returns 204 when no active session exists", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(
+      upsertRef,
+      makeSessionArgs({ sessionId: "ended", isActive: false }),
+    );
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer test-secret-key" },
+    });
+
+    expect(response.status).toBe(204);
+    const text = await response.text();
+    expect(text).toBe("");
+  });
+
+  it("returns 204 when no sessions exist at all", async () => {
+    const t = convexTest(schema, modules);
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer test-secret-key" },
+    });
+
+    expect(response.status).toBe(204);
+  });
+
+  it("rejects requests without Authorization header", async () => {
+    const t = convexTest(schema, modules);
+
+    const response = await t.fetch("/api/device/session", { method: "GET" });
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects requests with invalid bearer token", async () => {
+    const t = convexTest(schema, modules);
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer wrong-key" },
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects requests with non-Bearer auth", async () => {
+    const t = convexTest(schema, modules);
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Basic dXNlcjpwYXNz" },
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 500 when BRIDGE_API_KEY is not set", async () => {
+    vi.stubEnv("BRIDGE_API_KEY", "");
+    const t = convexTest(schema, modules);
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer anything" },
+    });
+    expect(response.status).toBe(500);
+  });
+
+  it("returns first active session when multiple exist", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(
+      upsertRef,
+      makeSessionArgs({ sessionId: "first-active", isActive: true }),
+    );
+    await t.mutation(
+      upsertRef,
+      makeSessionArgs({ sessionId: "second-active", isActive: true }),
+    );
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer test-secret-key" },
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    // Should return a single session object, not an array
+    expect(body.sessionId).toBeDefined();
+    expect(body.isActive).toBe(true);
+  });
+
+  it("response shape matches sessions table schema", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(
+      upsertRef,
+      makeSessionArgs({
+        sessionId: "shape-check",
+        model: "claude-sonnet-4-6",
+        cwd: "/project",
+        currentTool: "Read",
+        currentTarget: "/file.ts",
+        notificationState: "permission_prompt",
+        notificationMessage: "Allow?",
+        inputTokens: 1000,
+        outputTokens: 500,
+        cacheCreationInputTokens: 200,
+        cacheReadInputTokens: 800,
+        lastAssistantMessage: "Done.",
+        permissionMode: "default",
+        isActive: true,
+        startedAt: 1700000000000,
+        updatedAt: 1700000001000,
+      }),
+    );
+
+    const response = await t.fetch("/api/device/session", {
+      method: "GET",
+      headers: { Authorization: "Bearer test-secret-key" },
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      sessionId: "shape-check",
+      model: "claude-sonnet-4-6",
+      cwd: "/project",
+      currentTool: "Read",
+      currentTarget: "/file.ts",
+      notificationState: "permission_prompt",
+      notificationMessage: "Allow?",
+      inputTokens: 1000,
+      outputTokens: 500,
+      cacheCreationInputTokens: 200,
+      cacheReadInputTokens: 800,
+      lastAssistantMessage: "Done.",
+      permissionMode: "default",
+      isActive: true,
+      startedAt: 1700000000000,
+      updatedAt: 1700000001000,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // HTTP action: POST /api/bridge/update
 // ---------------------------------------------------------------------------
 
