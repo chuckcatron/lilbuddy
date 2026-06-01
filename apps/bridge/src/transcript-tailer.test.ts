@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TokenUsage } from "@lilbuddy/shared";
 import { EMPTY_TOKEN_USAGE } from "@lilbuddy/shared";
 
-import { type TokenUpdateCallback, TranscriptTailer } from "./transcript-tailer.js";
+import {
+  type ModelUpdateCallback,
+  type TokenUpdateCallback,
+  TranscriptTailer,
+} from "./transcript-tailer.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -348,5 +352,71 @@ describe("TranscriptTailer", () => {
     await waitFor(() => tailer!.accumulated.inputTokens === 550, 5000);
 
     expect(tailer.accumulated.outputTokens).toBe(275);
+  });
+
+  it("extracts the model from assistant records and reports it once", async () => {
+    const onTokens = vi.fn<TokenUpdateCallback>();
+    const onModel = vi.fn<ModelUpdateCallback>();
+
+    const lines =
+      [
+        JSON.stringify({
+          type: "assistant",
+          message: { model: "claude-opus-4-8", usage: { input_tokens: 100, output_tokens: 50 } },
+        }),
+        JSON.stringify({
+          type: "assistant",
+          message: { model: "claude-opus-4-8", usage: { input_tokens: 60, output_tokens: 20 } },
+        }),
+      ].join("\n") + "\n";
+
+    await writeFile(testFile, lines);
+
+    tailer = new TranscriptTailer(testFile, onTokens, onModel);
+    tailer.start();
+
+    await waitFor(() => onModel.mock.calls.length >= 1);
+
+    // Model reported exactly once, even though two records carry it
+    expect(onModel).toHaveBeenCalledTimes(1);
+    expect(onModel).toHaveBeenCalledWith("claude-opus-4-8");
+
+    // Tokens still accumulate across both records
+    await waitFor(() => tailer!.accumulated.inputTokens === 160);
+    expect(tailer.accumulated.outputTokens).toBe(70);
+  });
+
+  it("does not report a model when assistant records omit it", async () => {
+    const onTokens = vi.fn<TokenUpdateCallback>();
+    const onModel = vi.fn<ModelUpdateCallback>();
+
+    await writeFile(
+      testFile,
+      makeAssistantRecord({ input_tokens: 10, output_tokens: 5 }) + "\n",
+    );
+
+    tailer = new TranscriptTailer(testFile, onTokens, onModel);
+    tailer.start();
+
+    await waitFor(() => onTokens.mock.calls.length >= 1);
+    expect(onModel).not.toHaveBeenCalled();
+  });
+
+  it("works without an onModel callback (optional)", async () => {
+    const onTokens = vi.fn<TokenUpdateCallback>();
+
+    await writeFile(
+      testFile,
+      JSON.stringify({
+        type: "assistant",
+        message: { model: "claude-opus-4-8", usage: { input_tokens: 7, output_tokens: 3 } },
+      }) + "\n",
+    );
+
+    tailer = new TranscriptTailer(testFile, onTokens);
+    tailer.start();
+
+    await waitFor(() => onTokens.mock.calls.length >= 1);
+    expect(tailer.accumulated.inputTokens).toBe(7);
   });
 });

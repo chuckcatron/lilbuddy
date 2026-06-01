@@ -157,4 +157,19 @@ export class SessionStore extends EventEmitter<SessionStoreEvents> {
     this.#sessions.set(sessionId, next);
     this.emit("stateChanged", next);
   }
+
+  updateModel(sessionId: string, model: string): void {
+    const state = this.#sessions.get(sessionId);
+    if (!state) return;
+    if (!model || state.model === model) return;
+
+    const next: SessionState = {
+      ...state,
+      model,
+      updatedAt: Date.now(),
+    };
+
+    this.#sessions.set(sessionId, next);
+    this.emit("stateChanged", next);
+  }
 }
