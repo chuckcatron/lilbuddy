@@ -24,11 +24,25 @@ describe("SessionCard", () => {
     vi.setSystemTime(new Date("2026-05-31T12:00:00Z"));
   });
 
-  it("renders model name", () => {
+  it("derives project name from cwd", () => {
+    const session = { ...baseSession, startedAt: Date.now() - 5 * 60_000 };
+    render(<SessionCard session={session} />);
+
+    expect(screen.getByTestId("project-name")).toHaveTextContent("project");
+  });
+
+  it("shows full cwd as tooltip on project name", () => {
+    const session = { ...baseSession, startedAt: Date.now() - 5 * 60_000 };
+    render(<SessionCard session={session} />);
+
+    expect(screen.getByTestId("project-name")).toHaveAttribute("title", "/home/user/project");
+  });
+
+  it("renders shortened model name", () => {
     const session = { ...baseSession, startedAt: Date.now() - 30 * 60_000 };
     render(<SessionCard session={session} />);
 
-    expect(screen.getByText("claude-opus-4-6")).toBeInTheDocument();
+    expect(screen.getByTestId("model-label")).toHaveTextContent("opus-4-6");
   });
 
   it("shows current tool and target when active", () => {
@@ -44,14 +58,22 @@ describe("SessionCard", () => {
     expect(screen.getByText(/src\/index.ts/)).toBeInTheDocument();
   });
 
-  it("shows 'idle' when no current tool", () => {
+  it("shows 'Idle' status when no current tool", () => {
     const session = { ...baseSession, startedAt: Date.now() - 5 * 60_000 };
     render(<SessionCard session={session} />);
 
-    const idleElements = screen.getAllByText("idle");
-    // One "idle" in the tool display area (font-mono), one in notification badge
-    const toolIdle = idleElements.find((el) => el.className.includes("text-neutral-600"));
-    expect(toolIdle).toBeInTheDocument();
+    expect(screen.getByTestId("status-label")).toHaveTextContent("Idle");
+  });
+
+  it("shows 'Working' status when tool is active", () => {
+    const session = {
+      ...baseSession,
+      startedAt: Date.now() - 5 * 60_000,
+      currentTool: "Bash",
+    };
+    render(<SessionCard session={session} />);
+
+    expect(screen.getByTestId("status-label")).toHaveTextContent("Working");
   });
 
   it("displays token count", () => {
@@ -92,7 +114,7 @@ describe("SessionCard", () => {
     expect(screen.getByText("Hello world")).toBeInTheDocument();
   });
 
-  it("highlights card when notification state is not 'none'", () => {
+  it("highlights card red for permission_prompt", () => {
     const session = {
       ...baseSession,
       startedAt: Date.now() - 5 * 60_000,
@@ -103,13 +125,46 @@ describe("SessionCard", () => {
 
     const card = screen.getByTestId("session-card");
     expect(card.className).toContain("border-red-500");
+    expect(screen.getByTestId("status-label")).toHaveTextContent("Permission needed");
   });
 
-  it("uses neutral styling when notification state is 'none'", () => {
+  it("highlights card amber for idle_prompt", () => {
+    const session = {
+      ...baseSession,
+      startedAt: Date.now() - 5 * 60_000,
+      notificationState: "idle_prompt" as const,
+    };
+    render(<SessionCard session={session} />);
+
+    const card = screen.getByTestId("session-card");
+    expect(card.className).toContain("border-amber-500");
+    expect(screen.getByTestId("status-label")).toHaveTextContent("Needs input");
+  });
+
+  it("shows green border when session is working", () => {
+    const session = {
+      ...baseSession,
+      startedAt: Date.now() - 5 * 60_000,
+      currentTool: "Read",
+    };
+    render(<SessionCard session={session} />);
+
+    const card = screen.getByTestId("session-card");
+    expect(card.className).toContain("border-green-500");
+  });
+
+  it("uses neutral styling when idle", () => {
     const session = { ...baseSession, startedAt: Date.now() - 5 * 60_000 };
     render(<SessionCard session={session} />);
 
     const card = screen.getByTestId("session-card");
     expect(card.className).toContain("border-neutral-800");
+  });
+
+  it("does not show activity line when idle", () => {
+    const session = { ...baseSession, startedAt: Date.now() - 5 * 60_000 };
+    render(<SessionCard session={session} />);
+
+    expect(screen.queryByText(/→/)).not.toBeInTheDocument();
   });
 });

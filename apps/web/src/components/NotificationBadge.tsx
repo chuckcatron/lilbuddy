@@ -5,17 +5,9 @@ interface NotificationBadgeProps {
   readonly message?: string;
 }
 
-export function NotificationBadge({ state, message }: NotificationBadgeProps): React.ReactElement {
+export function NotificationBadge({ state, message }: NotificationBadgeProps): React.ReactElement | null {
   if (state === "none") {
-    return (
-      <span
-        className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-500"
-        data-testid="notification-badge"
-        data-state="none"
-      >
-        idle
-      </span>
-    );
+    return null;
   }
 
   const isPermission = state === "permission_prompt";

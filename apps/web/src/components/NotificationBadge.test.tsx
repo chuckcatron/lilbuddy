@@ -4,12 +4,10 @@ import { describe, expect, it } from "vitest";
 import { NotificationBadge } from "./NotificationBadge";
 
 describe("NotificationBadge", () => {
-  it("renders idle state for 'none'", () => {
-    render(<NotificationBadge state="none" />);
+  it("returns null for 'none' state", () => {
+    const { container } = render(<NotificationBadge state="none" />);
 
-    const badge = screen.getByTestId("notification-badge");
-    expect(badge).toHaveTextContent("idle");
-    expect(badge).toHaveAttribute("data-state", "none");
+    expect(container.innerHTML).toBe("");
   });
 
   it("renders 'Waiting on you' for permission_prompt", () => {
@@ -43,13 +41,5 @@ describe("NotificationBadge", () => {
     const badge = screen.getByTestId("notification-badge");
     expect(badge.className).toContain("bg-amber-500");
     expect(badge.className).toContain("animate-pulse");
-  });
-
-  it("uses subtle styling for none state", () => {
-    render(<NotificationBadge state="none" />);
-
-    const badge = screen.getByTestId("notification-badge");
-    expect(badge.className).toContain("bg-neutral-800");
-    expect(badge.className).not.toContain("animate-pulse");
   });
 });
